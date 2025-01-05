@@ -1,4 +1,4 @@
-AniList Vault is a web-based application designed to backup and manage AniList.co Backups. The tool allows users to manually or automatically create backups of their anime and manga lists, storing detailed statistics such as total entries, time watched, mean score, and more.
+AniList Backup Manager is a web-based application designed to backup and manage AniList.co Backups. The tool allows users to manually or automatically create backups of their anime and manga lists, storing detailed statistics such as total entries, time watched, mean score, and more.
 
 Key Features:
 Manual and Automatic Backups: Perform one-click manual backups or schedule recurring automatic backups at set intervals.
