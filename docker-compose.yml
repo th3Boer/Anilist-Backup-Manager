@@ -1,0 +1,7 @@
+services:
+  anilist-vault:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backups:/app/backups
