@@ -109,6 +109,33 @@ function validateAutoBackupFields() {
 }
 
 
+function setupSSEConnection() {
+    const eventSource = new EventSource('/events');
+    
+    eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        if (data.type === 'backup_created') {
+            updateBackupsList();
+            updateOverview();
+        }
+    };
+
+    eventSource.onerror = function(error) {
+        console.error('SSE connection error:', error);
+        // Try to reconnect after 5 seconds
+        setTimeout(setupSSEConnection, 5000);
+    };
+}
+
+// Initial calls
+loadLogs();
+updateBackupsList();
+setupSSEConnection();
+
+// Check auto backup status on page load
+
+
+
 function updateButtonState(isRunning) {
     const button = document.getElementById('autoBackupButton');
     const usernameInput = document.getElementById('autoUsername');
@@ -272,39 +299,41 @@ async function toggleAutoBackup() {
     }
 }
 
-async function updateBackupsList() {
+// In main.js, update die Funktion, die die Backup-Zeilen erstellt:
+
+function updateBackupsList() {
     try {
-        const response = await fetch('/backups');
-        if (!response.ok) throw new Error('Failed to fetch backups');
-        
-        const backups = await response.json();
-        const tbody = document.getElementById('backupsTableBody');
-        tbody.innerHTML = '';
+        fetch('/backups')
+            .then(response => response.json())
+            .then(backups => {
+                const tbody = document.getElementById('backupsTableBody');
+                tbody.innerHTML = '';
 
-        backups.forEach(backup => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${new Date(backup.date).toLocaleString()}</td>
-                <td>${backup.username}</td>
-                <td>${backup.content}</td>
-                <td>
-                    <div class="actions">
-                        <button class="btn-purple" onclick="showStats('${backup.id}')">Stats</button>
-                        <button class="btn-yellow" onclick="downloadBackup('${backup.id}')">Download</button>
-                        <button class="btn-red" onclick="deleteBackup('${backup.id}', true)">Delete</button>
-                    </div>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-
-        if (backups.length > 0) {
-            await updateOverview();
-        }
+                backups.forEach(backup => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td data-label="Date">${new Date(backup.date).toLocaleString()}</td>
+                        <td data-label="Username">${backup.username}</td>
+                        <td data-label="Content">${backup.content}</td>
+                        <td data-label="Actions">
+                            <div class="actions">
+                                <button class="btn-purple" onclick="showStats('${backup.id}')">Stats</button>
+                                <button class="btn-yellow" onclick="downloadBackup('${backup.id}')">Download</button>
+                                <button class="btn-red" onclick="deleteBackup('${backup.id}', true)">Delete</button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            });
     } catch (error) {
         addLog(`Error updating backups list: ${error.message}`);
     }
 }
+
+
+
+
 
 async function downloadBackup(backupId) {
     try {
@@ -348,99 +377,111 @@ async function deleteBackup(backupId, showConfirm = true) {
     }
 }
 
-async function showStats(backupId) {
+function showStats(backupId) {
     try {
-        const response = await fetch(`/backup/${backupId}/stats`);
-        if (!response.ok) throw new Error('Failed to fetch stats');
-        
-        const stats = await response.json();
-        const statsContent = document.getElementById('statsContent');
-        
-        statsContent.innerHTML = `
-            <div class="stats-container">
-                <div class="stats-section">
-                    <h3>Anime Statistics</h3>
-                    <div class="main-stats">
-                        <div class="stat-box">
-                            <div class="stat-label">Total Entries</div>
-                            <div class="stat-value">${stats.anime.totalEntries}</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-label">Time Watched</div>
-                            <div class="stat-value">${stats.anime.timeWatched}h</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-label">Mean Score</div>
-                            <div class="stat-value">${stats.anime.meanScore.toFixed(1)}</div>
-                        </div>
-                    </div>
-                    <div class="status-grid">
-                        <div class="status-box watching">
-                            <div class="status-count">${stats.anime.status?.watching || 0}</div>
-                            <div class="status-label">Watching</div>
-                        </div>
-                        <div class="status-box completed">
-                            <div class="status-count">${stats.anime.status?.completed || 0}</div>
-                            <div class="status-label">Completed</div>
-                        </div>
-                        <div class="status-box on-hold">
-                            <div class="status-count">${stats.anime.status?.on_hold || 0}</div>
-                            <div class="status-label">On Hold</div>
-                        </div>
-                        <div class="status-box dropped">
-                            <div class="status-count">${stats.anime.status?.dropped || 0}</div>
-                            <div class="status-label">Dropped</div>
-                        </div>
-                        <div class="status-box planning">
-                            <div class="status-count">${stats.anime.status?.planning || 0}</div>
-                            <div class="status-label">Plan to Watch</div>
-                        </div>
-                    </div>
-                </div>
+        fetch(`/backup/${backupId}/stats`)
+            .then(response => response.json())
+            .then(stats => {
+                const statsContent = document.getElementById('statsContent');
                 
-                <div class="stats-section">
-                    <h3>Manga Statistics</h3>
-                    <div class="main-stats">
-                        <div class="stat-box">
-                            <div class="stat-label">Total Entries</div>
-                            <div class="stat-value">${stats.manga.totalEntries}</div>
+                statsContent.innerHTML = `
+                    <div class="detailed-stats-container">
+                        <div class="detailed-stats-section">
+                            <h3>Anime Statistics</h3>
+                            <div class="main-stats">
+                                <div class="stat-box">
+                                    <div class="stat-icon">📚</div>
+                                    <div class="stat-label">Total Entries</div>
+                                    <div class="stat-value">${stats.anime.totalEntries}</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-icon">⏱️</div>
+                                    <div class="stat-label">Time Watched</div>
+                                    <div class="stat-value">${stats.anime.timeWatched}h</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-icon">⭐</div>
+                                    <div class="stat-label">Mean Score</div>
+                                    <div class="stat-value">${stats.anime.meanScore.toFixed(1)}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="status-title">Status Distribution</div>
+                            <div class="status-grid">
+                                <div class="status-box watching">
+                                    <div class="status-count">${stats.anime.status?.watching || 0}</div>
+                                    <div class="status-label">Watching</div>
+                                </div>
+                                <div class="status-box completed">
+                                    <div class="status-count">${stats.anime.status?.completed || 0}</div>
+                                    <div class="status-label">Completed</div>
+                                </div>
+                                <div class="status-box on-hold">
+                                    <div class="status-count">${stats.anime.status?.on_hold || 0}</div>
+                                    <div class="status-label">On Hold</div>
+                                </div>
+                                <div class="status-box dropped">
+                                    <div class="status-count">${stats.anime.status?.dropped || 0}</div>
+                                    <div class="status-label">Dropped</div>
+                                </div>
+                                <div class="status-box planning">
+                                    <div class="status-count">${stats.anime.status?.planning || 0}</div>
+                                    <div class="status-label">Plan to Watch</div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="stat-box">
-                            <div class="stat-label">Chapters Read</div>
-                            <div class="stat-value">${stats.manga.chaptersRead}</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-label">Mean Score</div>
-                            <div class="stat-value">${stats.manga.meanScore.toFixed(1)}</div>
+                        
+                        <div class="stats-divider"></div>
+                        
+                        <div class="detailed-stats-section">
+                            <h3>Manga Statistics</h3>
+                            <div class="main-stats">
+                                <div class="stat-box">
+                                    <div class="stat-icon">📚</div>
+                                    <div class="stat-label">Total Entries</div>
+                                    <div class="stat-value">${stats.manga.totalEntries}</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-icon">📖</div>
+                                    <div class="stat-label">Chapters Read</div>
+                                    <div class="stat-value">${stats.manga.chaptersRead}</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-icon">⭐</div>
+                                    <div class="stat-label">Mean Score</div>
+                                    <div class="stat-value">${stats.manga.meanScore.toFixed(1)}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="status-title">Status Distribution</div>
+                            <div class="status-grid">
+                                <div class="status-box reading">
+                                    <div class="status-count">${stats.manga.status?.reading || 0}</div>
+                                    <div class="status-label">Reading</div>
+                                </div>
+                                <div class="status-box completed">
+                                    <div class="status-count">${stats.manga.status?.completed || 0}</div>
+                                    <div class="status-label">Completed</div>
+                                </div>
+                                <div class="status-box on-hold">
+                                    <div class="status-count">${stats.manga.status?.on_hold || 0}</div>
+                                    <div class="status-label">On Hold</div>
+                                </div>
+                                <div class="status-box dropped">
+                                    <div class="status-count">${stats.manga.status?.dropped || 0}</div>
+                                    <div class="status-label">Dropped</div>
+                                </div>
+                                <div class="status-box planning">
+                                    <div class="status-count">${stats.manga.status?.planning || 0}</div>
+                                    <div class="status-label">Plan to Read</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="status-grid">
-                        <div class="status-box reading">
-                            <div class="status-count">${stats.manga.status?.reading || 0}</div>
-                            <div class="status-label">Reading</div>
-                        </div>
-                        <div class="status-box completed">
-                            <div class="status-count">${stats.manga.status?.completed || 0}</div>
-                            <div class="status-label">Completed</div>
-                        </div>
-                        <div class="status-box on-hold">
-                            <div class="status-count">${stats.manga.status?.on_hold || 0}</div>
-                            <div class="status-label">On Hold</div>
-                        </div>
-                        <div class="status-box dropped">
-                            <div class="status-count">${stats.manga.status?.dropped || 0}</div>
-                            <div class="status-label">Dropped</div>
-                        </div>
-                        <div class="status-box planning">
-                            <div class="status-count">${stats.manga.status?.planning || 0}</div>
-                            <div class="status-label">Plan to Read</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        modal.style.display = "block";
+                `;
+                
+                modal.style.display = "block";
+            });
     } catch (error) {
         addLog(`Error showing stats: ${error.message}`);
     }
@@ -485,6 +526,133 @@ window.onclick = function(event) {
         modal.style.display = "none";
     }
 }
+
+
+// Stats Overview Component
+const StatsOverview = () => {
+    const container = document.getElementById('statsOverview');
+    container.innerHTML = `
+        <div class="stats-overview">
+            <div class="stats-card">
+                <div class="stats-card-header">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" class="mr-2">
+                        <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
+                        <polyline points="17 2 12 7 7 2"></polyline>
+                    </svg>
+                    <h3>Anime Stats</h3>
+                </div>
+                <div class="stats-card-content">
+                    <div class="stats-card-item">
+                        <div class="stats-card-label">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" class="mr-2">
+                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                            </svg>
+                            Total Entries
+                        </div>
+                        <div class="stats-card-value">
+                            <span id="animeTotalEntries"></span>
+                        </div>
+                    </div>
+                    <div class="stats-card-item">
+                        <div class="stats-card-label">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" class="mr-2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            Time Watched
+                        </div>
+                        <div class="stats-card-value">
+                            <span id="animeTimeWatched"></span>
+                        </div>
+                    </div>
+                    <div class="stats-card-item">
+                        <div class="stats-card-label">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" class="mr-2">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                            Mean Score
+                        </div>
+                        <div class="stats-card-value">
+                            <span id="animeMeanScore"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stats-card">
+                <div class="stats-card-header">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" class="mr-2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    <h3>Manga Stats</h3>
+                </div>
+                <div class="stats-card-content">
+                    <div class="stats-card-item">
+                        <div class="stats-card-label">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" class="mr-2">
+                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                            </svg>
+                            Total Entries
+                        </div>
+                        <div class="stats-card-value">
+                            <span id="mangaTotalEntries"></span>
+                        </div>
+                    </div>
+                    <div class="stats-card-item">
+                        <div class="stats-card-label">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" class="mr-2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="3" y1="9" x2="21" y2="9"></line>
+                                <line x1="9" y1="21" x2="9" y2="9"></line>
+                            </svg>
+                            Chapters Read
+                        </div>
+                        <div class="stats-card-value">
+                            <span id="mangaChaptersRead"></span>
+                        </div>
+                    </div>
+                    <div class="stats-card-item">
+                        <div class="stats-card-label">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" class="mr-2">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                            Mean Score
+                        </div>
+                        <div class="stats-card-value">
+                            <span id="mangaMeanScore"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+// Initialize the overview on page load
+document.addEventListener('DOMContentLoaded', () => {
+    StatsOverview();
+});
+
+// Initialize the overview on page load
+document.addEventListener('DOMContentLoaded', () => {
+    StatsOverview();
+});
+
+// Initialize the overview on page load
+document.addEventListener('DOMContentLoaded', () => {
+    StatsOverview();
+});
+
+// Initialize the overview on page load
+document.addEventListener('DOMContentLoaded', () => {
+    StatsOverview();
+});
+
+// Rest of your existing main.js code here...
+
 
 // Initial calls
 loadLogs();

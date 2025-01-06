@@ -1,28 +1,31 @@
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, Response, stream_with_context
 import os
 import json
+import shutil
 from datetime import datetime
 import threading
 import time
 import requests
 import zipfile
 import io
+import queue
 
 app = Flask(__name__)
+sse_queue = queue.Queue()
 
-# Globale Variablen
+# Global variables
 BACKUP_DIR = "backups"
 LOGS_FILE = "logs.json"
-CONFIG_FILE = "config.json"  # Neue Konfigurationsdatei
+CONFIG_FILE = "config.json"
 MAX_LOGS = 100
 
-# Auto-Backup Konfiguration
+# Auto-Backup Configuration
 auto_backup_thread = None
 stop_auto_backup = threading.Event()
 auto_backup_config = None
 backup_lock = threading.Lock()
 
-# Verzeichnisse erstellen
+# Create directories
 if not os.path.exists(BACKUP_DIR):
     os.makedirs(BACKUP_DIR)
 
@@ -60,6 +63,49 @@ query ($username: String) {
 }
 """
 
+def validate_backup_files(backup_dir):
+    """
+    Validates that all required files exist and are non-empty in the backup directory
+    """
+    required_files = ['anime.json', 'manga.json', 'animemanga_stats.txt', 
+                     'anime.xml', 'manga.xml', 'meta.json']
+    
+    for filename in required_files:
+        file_path = os.path.join(backup_dir, filename)
+        if not os.path.exists(file_path):
+            raise ValueError(f"Missing required file: {filename}")
+        if os.path.getsize(file_path) == 0:
+            raise ValueError(f"Empty file detected: {filename}")
+
+def validate_backup_zip(zip_path):
+    """
+    Validates that a backup ZIP contains all required files and they are non-empty
+    """
+    required_files = ['anime.json', 'manga.json', 'animemanga_stats.txt', 
+                     'anime.xml', 'manga.xml', 'meta.json']
+    
+    with zipfile.ZipFile(zip_path, 'r') as zipf:
+        zip_files = zipf.namelist()
+        for req_file in required_files:
+            matching_files = [f for f in zip_files if f.endswith(req_file)]
+            if not matching_files:
+                raise ValueError(f"Missing required file in zip: {req_file}")
+            
+            file_info = zipf.getinfo(matching_files[0])
+            if file_info.file_size == 0:
+                raise ValueError(f"Empty file in zip: {req_file}")
+                
+            if req_file.endswith('.json'):
+                with zipf.open(matching_files[0]) as f:
+                    try:
+                        data = json.load(f)
+                        if not data:
+                            raise ValueError(f"Empty JSON content in: {req_file}")
+                    except json.JSONDecodeError:
+                        raise ValueError(f"Invalid JSON in: {req_file}")
+    
+    return True
+
 def load_config():
     try:
         if os.path.exists(CONFIG_FILE):
@@ -89,8 +135,7 @@ def save_log(message, is_success=False):
             'is_success': is_success
         })
         
-        # Keep only last 100 logs
-        logs = logs[-MAX_LOGS:]
+        logs = logs[-MAX_LOGS:]  # Keep only last MAX_LOGS logs
         
         with open(LOGS_FILE, 'w') as f:
             json.dump(logs, f)
@@ -213,32 +258,34 @@ def create_backup(username):
         
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         backup_id = f"{username}_{timestamp}"
+        meta_data = None  # Initialize meta_data outside try block
         
         # Only use lock for file operations
         with backup_lock:
             backup_dir = os.path.join(BACKUP_DIR, backup_id)
             os.makedirs(backup_dir, exist_ok=True)
 
-            # Create anime.json and manga.json
-            anime_data = []
-            manga_data = []
-            
-            if 'MediaListCollection' in data['data']:
-                for list_group in data['data']['MediaListCollection']['lists']:
-                    anime_data.extend(list_group['entries'])
-                    
-            if 'MediaListCollection2' in data['data']:
-                for list_group in data['data']['MediaListCollection2']['lists']:
-                    manga_data.extend(list_group['entries'])
-
-            with open(os.path.join(backup_dir, 'anime.json'), 'w', encoding='utf-8') as f:
-                json.dump(anime_data, f, ensure_ascii=False, indent=2)
+            try:
+                # Create all backup files
+                anime_data = []
+                manga_data = []
                 
-            with open(os.path.join(backup_dir, 'manga.json'), 'w', encoding='utf-8') as f:
-                json.dump(manga_data, f, ensure_ascii=False, indent=2)
+                if 'MediaListCollection' in data['data']:
+                    for list_group in data['data']['MediaListCollection']['lists']:
+                        anime_data.extend(list_group['entries'])
+                        
+                if 'MediaListCollection2' in data['data']:
+                    for list_group in data['data']['MediaListCollection2']['lists']:
+                        manga_data.extend(list_group['entries'])
 
-            # Create stats text file
-            stats_text = f"""Anime & Manga Statistics for {username}
+                with open(os.path.join(backup_dir, 'anime.json'), 'w', encoding='utf-8') as f:
+                    json.dump(anime_data, f, ensure_ascii=False, indent=2)
+                    
+                with open(os.path.join(backup_dir, 'manga.json'), 'w', encoding='utf-8') as f:
+                    json.dump(manga_data, f, ensure_ascii=False, indent=2)
+
+                # Create stats text file
+                stats_text = f"""Anime & Manga Statistics for {username}
 Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 Anime Statistics:
@@ -268,48 +315,65 @@ Status Distribution:
 - Plan to Read: {manga_stats['status']['planning']}
 """
 
-            with open(os.path.join(backup_dir, 'animemanga_stats.txt'), 'w', encoding='utf-8') as f:
-                f.write(stats_text)
+                with open(os.path.join(backup_dir, 'animemanga_stats.txt'), 'w', encoding='utf-8') as f:
+                    f.write(stats_text)
 
-            # Create MAL XML exports
-            anime_xml = generate_mal_xml(anime_data, 'anime')
-            manga_xml = generate_mal_xml(manga_data, 'manga')
+                # Create MAL XML exports
+                anime_xml = generate_mal_xml(anime_data, 'anime')
+                manga_xml = generate_mal_xml(manga_data, 'manga')
 
-            with open(os.path.join(backup_dir, 'anime.xml'), 'w', encoding='utf-8') as f:
-                f.write(anime_xml)
-                
-            with open(os.path.join(backup_dir, 'manga.xml'), 'w', encoding='utf-8') as f:
-                f.write(manga_xml)
-                
-            # Create meta.json for our system
-            meta_data = {
-                'id': backup_id,
-                'date': datetime.now().isoformat(),
-                'username': username,
-                'stats': {
-                    'anime': anime_stats,
-                    'manga': manga_stats
-                }
-            }
-            
-            with open(os.path.join(backup_dir, 'meta.json'), 'w', encoding='utf-8') as f:
-                json.dump(meta_data, f, ensure_ascii=False, indent=2)
-                
-            # Create ZIP file
-            zip_path = os.path.join(BACKUP_DIR, f"{backup_id}.zip")
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for filename in ['anime.json', 'manga.json', 'animemanga_stats.txt', 
-                               'anime.xml', 'manga.xml', 'meta.json']:
-                    file_path = os.path.join(backup_dir, filename)
-                    zipf.write(file_path, filename)
+                with open(os.path.join(backup_dir, 'anime.xml'), 'w', encoding='utf-8') as f:
+                    f.write(anime_xml)
                     
-            # Cleanup directory
-            for filename in os.listdir(backup_dir):
-                os.remove(os.path.join(backup_dir, filename))
-            os.rmdir(backup_dir)
-            
-        save_log(f"Created backup for {username}", True)
-        return meta_data
+                with open(os.path.join(backup_dir, 'manga.xml'), 'w', encoding='utf-8') as f:
+                    f.write(manga_xml)
+                
+                # Create meta.json with proper dictionary
+                meta_data = {
+                    'id': backup_id,
+                    'date': datetime.now().isoformat(),
+                    'username': username,
+                    'stats': {
+                        'anime': anime_stats,
+                        'manga': manga_stats
+                    }
+                }
+                
+                with open(os.path.join(backup_dir, 'meta.json'), 'w', encoding='utf-8') as f:
+                    json.dump(meta_data, f, ensure_ascii=False, indent=2)
+                    
+                # Create ZIP file
+                zip_path = os.path.join(BACKUP_DIR, f"{backup_id}.zip")
+                with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    for filename in ['anime.json', 'manga.json', 'animemanga_stats.txt', 
+                                   'anime.xml', 'manga.xml', 'meta.json']:
+                        file_path = os.path.join(backup_dir, filename)
+                        zipf.write(file_path, filename)
+                    
+                # Cleanup directory
+                for filename in os.listdir(backup_dir):
+                    os.remove(os.path.join(backup_dir, filename))
+                os.rmdir(backup_dir)
+                
+                # Send SSE event
+                sse_queue.put({
+                    'type': 'backup_created',
+                    'data': {
+                        'username': username,
+                        'timestamp': datetime.now().isoformat()
+                    }
+                })
+                
+                save_log(f"Created backup for {username}", True)
+                return meta_data
+
+            except Exception as e:
+                # If anything fails during the process, clean up
+                if os.path.exists(backup_dir):
+                    shutil.rmtree(backup_dir)
+                if 'zip_path' in locals() and os.path.exists(zip_path):
+                    os.remove(zip_path)
+                raise e
             
     except Exception as e:
         save_log(f"Backup failed: {str(e)}")
@@ -327,17 +391,18 @@ def auto_backup_task():
                 
                 if username and keep_last > 0:
                     try:
+                        # Create backup first
                         create_backup(username)
                         
-                        # Cleanup old backups
-                        backups = get_user_backups(username)
-                        if len(backups) > keep_last:
-                            backups_to_delete = sorted(backups, key=lambda x: x['date'])[:-keep_last]
-                            for backup in backups_to_delete:
-                                delete_backup_file(backup['id'])
+                        # Then clean up old backups
+                        with backup_lock:
+                            backups = get_user_backups(username)
+                            if len(backups) > keep_last:
+                                backups_to_delete = sorted(backups, key=lambda x: x['date'])[:-keep_last]
+                                for backup in backups_to_delete:
+                                    delete_backup_file(backup['id'])
                     except Exception as backup_error:
                         save_log(f"Auto backup task error: {str(backup_error)}")
-                        # Continue running even if one backup fails
                 
                 # Sleep in smaller intervals for better responsiveness
                 sleep_interval = min(interval * 3600, 60)  # Max 60 seconds per interval
@@ -392,6 +457,22 @@ def delete_backup_file(backup_id):
 def index():
     return render_template('index.html')
 
+@app.route('/events')
+def events():
+    def event_stream():
+        while True:
+            try:
+                # Timeout after 30 seconds to send keep-alive
+                message = sse_queue.get(timeout=30)
+                yield f"data: {json.dumps(message)}\n\n"
+            except queue.Empty:
+                yield "data: {}\n\n"  # Keep-alive
+            
+    return Response(stream_with_context(event_stream()),
+                   mimetype='text/event-stream',
+                   headers={'Cache-Control': 'no-cache',
+                           'Connection': 'keep-alive'})
+
 @app.route('/backup', methods=['POST'])
 def manual_backup():
     try:
@@ -431,7 +512,7 @@ def start_auto_backup():
         if auto_backup_thread and auto_backup_thread.is_alive():
             stop_auto_backup.set()
             auto_backup_thread.join(timeout=2)
-            time.sleep(0.5)  # Kurze Wartezeit für Cleanup
+            time.sleep(0.5)  # Short wait for cleanup
         
         # Reset stop event and config
         stop_auto_backup.clear()
@@ -441,7 +522,7 @@ def start_auto_backup():
             'interval': interval
         }
         
-        # Speichere Konfiguration
+        # Save configuration
         save_config(auto_backup_config)
         
         # Start new thread
@@ -455,7 +536,6 @@ def start_auto_backup():
     except Exception as e:
         auto_backup_config = None
         stop_auto_backup.set()
-        # Lösche Konfiguration bei Fehler
         if os.path.exists(CONFIG_FILE):
             os.remove(CONFIG_FILE)
         save_log(f"Failed to start auto backup: {str(e)}")
@@ -468,10 +548,10 @@ def stop_auto_backup_route():
     try:
         save_log("Stopping auto backup...", True)
         
-        # Setze zuerst das Stop-Event
+        # Set stop event
         stop_auto_backup.set()
         
-        # Warte maximal 2 Sekunden auf Thread-Beendigung
+        # Wait max 2 seconds for thread to end
         if auto_backup_thread and auto_backup_thread.is_alive():
             auto_backup_thread.join(timeout=2)
             
@@ -479,7 +559,7 @@ def stop_auto_backup_route():
         auto_backup_config = None
         auto_backup_thread = None
         
-        # Lösche Konfigurationsdatei
+        # Delete configuration file
         if os.path.exists(CONFIG_FILE):
             os.remove(CONFIG_FILE)
             
@@ -590,7 +670,7 @@ def save_log_route():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    # Lade gespeicherte Konfiguration und starte Auto-Backup wenn vorhanden
+    # Load saved config and start auto backup if exists
     saved_config = load_config()
     if saved_config:
         auto_backup_config = saved_config
