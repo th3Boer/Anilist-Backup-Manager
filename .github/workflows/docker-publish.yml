@@ -37,9 +37,9 @@ jobs:
         context: . # Der Build-Kontext (wo sich dein Dockerfile befindet, '.' bedeutet Root-Verzeichnis)
         file: ./Dockerfile # Pfad zu deinem Dockerfile
         push: true # Pusht das Image nach dem Bauen
-        tags: # Tags für das Image
-          ghcr.io/${{ toLowerCase(github.repository_owner) }}/${{ toLowerCase(github.event.repository.name) }}:latest
-          ghcr.io/${{ toLowerCase(github.repository_owner) }}/${{ toLowerCase(github.event.repository.name) }}:${{ github.sha }}
+        tags: | # Tags für das Image
+          ghcr.io/${{ toLowerCase(format('{0}', github.repository_owner)) }}/${{ toLowerCase(format('{0}', github.event.repository.name)) }}:latest
+          ghcr.io/${{ toLowerCase(format('{0}', github.repository_owner)) }}/${{ toLowerCase(format('{0}', github.event.repository.name)) }}:${{ github.sha }}
         # Optional: Plattformen, für die gebaut werden soll (z.B. linux/amd64,linux/arm64)
         # platforms: linux/amd64,linux/arm64
         # Optional: Cache-Einstellungen, um Builds zu beschleunigen
