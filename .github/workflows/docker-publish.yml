@@ -1,0 +1,47 @@
+name: Docker Image CI
+
+# Löst den Workflow bei jedem Push auf den main-Branch aus
+on:
+  push:
+    branches: [ "main" ]
+  # Optional: Löst den Workflow auch manuell über die Actions-Seite aus
+  workflow_dispatch:
+
+jobs:
+  build_and_push:
+    runs-on: ubuntu-latest # Definiert den Runner, auf dem der Job ausgeführt wird
+    permissions:
+      contents: read      # Benötigt Lesezugriff auf den Code
+      packages: write     # Benötigt Schreibzugriff, um Pakete (Docker Images) zu GHCR zu pushen
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4 # Checkt deinen Code aus
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3 # Für Multi-Plattform Builds (optional, aber gute Praxis)
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3 # Ermöglicht erweiterte Build-Funktionen
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }} # Dein GitHub Benutzername
+        password: ${{ secrets.GITHUB_TOKEN }} # Automatisches Token von GitHub Actions
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: . # Der Build-Kontext (wo sich dein Dockerfile befindet, '.' bedeutet Root-Verzeichnis)
+        file: ./Dockerfile # Pfad zu deinem Dockerfile
+        push: true # Pusht das Image nach dem Bauen
+        tags: | # Tags für das Image
+          ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest
+          ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}
+        # Optional: Plattformen, für die gebaut werden soll (z.B. linux/amd64,linux/arm64)
+        # platforms: linux/amd64,linux/arm64
+        # Optional: Cache-Einstellungen, um Builds zu beschleunigen
+        # cache-from: type=gha
+        # cache-to: type=gha,mode=max
