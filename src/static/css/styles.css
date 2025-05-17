@@ -16,16 +16,16 @@
   --shadow-soft: 0 2px 4px rgba(0,0,0,0.2);
   --shadow-medium: 0 4px 8px rgba(0,0,0,0.3);
 
-  --status-watching: #3b82f6;
-  --status-reading: #3b82f6;
-  --status-completed: #22c55e;
-  --status-on-hold: #eab308;
-  --status-dropped: #ef4444;
-  --status-planning: #8b5cf6;
+  --status-watching: #3b82f6;    /* Blau */
+  --status-reading: #3b82f6;     /* Blau */
+  --status-completed: #22c55e;  /* Grün */
+  --status-on-hold: #f59e0b;    /* Orange/Gelb für On-Hold (Tailwind amber-500) */
+  --status-dropped: #ef4444;    /* Rot */
+  --status-planning: #8b5cf6;   /* Lila */
   
   --btn-blue: var(--status-watching);
   --btn-green: var(--status-completed);
-  --btn-yellow: var(--status-on-hold); /* War --btn-yellow: var(--status-hold); */
+  --btn-yellow: var(--status-on-hold); /* Jetzt korrekt zugewiesen */
   --btn-red: var(--status-dropped);
   --btn-purple: var(--status-planning);
 }
@@ -147,7 +147,7 @@ button {
    border: none;
    border-radius: var(--border-radius-medium); /* Konsistenter Radius */
    cursor: pointer;
-   font-weight: 500; /* War 500, beibehalten oder auf 600 für fetter */
+   font-weight: 500; 
    font-size: 0.95rem; /* Leicht angepasst */
    min-width: 120px; /* Mindestbreite */
    color: white;
@@ -172,12 +172,12 @@ button:disabled {
 .btn-blue { background-color: var(--btn-blue); }
 .btn-green { background-color: var(--btn-green); }
 .btn-purple { background-color: var(--btn-purple); }
-.btn-yellow { background-color: var(--btn-yellow); }
+.btn-yellow { background-color: var(--btn-yellow); } /* Verwendet jetzt die neue --status-on-hold Farbe */
 .btn-red { background-color: var(--btn-red); }
 
 .btn-blue:hover { background-color: #2563eb; }
 .btn-green:hover { background-color: #16a34a; }
-.btn-yellow:hover { background-color: #ca8a04; } /* War yellow-500 hover */
+.btn-yellow:hover { background-color: #d97706; } /* Tailwind amber-600 als Hover für on-hold */
 .btn-red:hover { background-color: #dc2626; }
 .btn-purple:hover { background-color: #7c3aed; }
 
@@ -185,7 +185,7 @@ button:disabled {
 /* Table Styles ("Previous Backups") */
 .table {
    width: 100%;
-   border-collapse: separate; /* Wichtig für border-radius an Zellen, falls benötigt, aber wir stylen Zeilen */
+   border-collapse: separate; 
    border-spacing: 0 8px; /* Vertikaler Abstand zwischen den Zeilen, macht sie kartenähnlicher */
 }
 .table th, .table td {
@@ -244,7 +244,7 @@ button:disabled {
 .modal-content {
     padding: 30px; /* Mehr Padding im Modal */
     width: 100%;
-    max-width: 900px; /* War 1000px, etwas schmaler für bessere Proportionen */
+    max-width: 900px; 
     background-color: var(--background-secondary);
     margin: 5vh auto;
     border-radius: var(--border-radius-large); /* Größerer Radius */
@@ -281,7 +281,7 @@ button:disabled {
 }
 .close:hover, .close:focus { color: var(--text-primary); transform: scale(1.1); }
 
-/* Loading Animation (unverändert) */
+/* Loading Animation */
 .loading-container { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--text-secondary); padding: 20px; }
 .loading-bar { width: 50px; height: 3px; background-color: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden; }
 .loading-bar-progress { width: 100%; height: 100%; background-color: white; animation: loading 1s infinite linear; transform-origin: 0% 50%; }
@@ -302,23 +302,23 @@ button:disabled {
 .github-footer svg { fill: currentColor; }
 
 
-/* Detailed Stats Styling (für Modal und Main Page Overview) */
+/* --- Detailed Stats Styling Anpassungen --- */
 .detailed-stats-container {
     display: flex;
-    gap: 25px; /* Konsistenter Gap */
+    gap: 25px; 
     padding: 10px 0;
-    flex-wrap: wrap; /* Erlaube Umbruch für bessere Responsivität */
+    flex-wrap: wrap; 
 }
 .detailed-stats-section { /* Gilt für Anime und Manga Blöcke */
     flex: 1;
-    min-width: 300px; /* Mindestbreite bevor Umbruch */
+    min-width: 300px; /* Beibehalten für generelle Responsivität */
     background-color: var(--background-tertiary); /* Leichter Kontrast zur Sektion */
     border-radius: var(--border-radius-large);
     padding: 20px;
     box-shadow: var(--shadow-soft);
 }
 .detailed-stats-section h3 { /* Titel in den Stats-Sektionen (Anime/Manga) */
-    font-size: 1.15rem; /* Etwas kleiner als H3 oben */
+    font-size: 1.15rem; 
     margin: 0 0 20px 0;
     text-align: center;
     color: var(--text-primary);
@@ -329,10 +329,18 @@ button:disabled {
 
 .main-stats { /* Grid für "Total Entries", "Episodes", "Mean Score" */
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); /* Auto-responsive Spalten */
     gap: 16px;
     margin-bottom: 25px;
 }
+/* Spezifisch für Anime: 3 Spalten */
+.detailed-stats-section[data-type="anime"] .main-stats {
+    grid-template-columns: repeat(3, 1fr); 
+}
+/* Spezifisch für Manga: 4 Spalten */
+.detailed-stats-section[data-type="manga"] .main-stats {
+    grid-template-columns: repeat(4, 1fr);
+}
+
 .stat-box { /* Einzelne Statistik-Karte */
     background-color: var(--background-secondary); /* Noch eine Ebene tiefer für Kontrast */
     padding: 16px 12px; /* Mehr vertikales Padding */
@@ -363,9 +371,10 @@ button:disabled {
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
+
 .status-grid { /* Grid für die farbigen Status-Boxen */
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(65px, 1fr)); /* Responsive Status-Boxen */
+    grid-template-columns: repeat(5, 1fr); /* Immer 5 Spalten für Status */
     gap: 10px;
 }
 .status-box { /* Einzelne farbige Status-Box */
@@ -389,10 +398,10 @@ button:disabled {
     text-transform: capitalize; /* Erster Buchstabe groß */
 }
 
-/* Status Farben (bereits definiert, hier nur zur Erinnerung) */
+/* Status Farben Zuweisung */
 .status-box.watching, .status-box.reading { background-color: var(--status-watching); }
 .status-box.completed { background-color: var(--status-completed); }
-.status-box.on-hold { background-color: var(--status-on-hold); }
+.status-box.on-hold { background-color: var(--status-on-hold); } /* Nutzt jetzt die Variable */
 .status-box.dropped { background-color: var(--status-dropped); }
 .status-box.planning { background-color: var(--status-planning); }
 
@@ -401,24 +410,11 @@ button:disabled {
     background-color: var(--border-color); /* Subtile Farbe */
     align-self: stretch; /* Dehnt sich über die Höhe des Flex-Containers */
 }
-/* Verstecke Divider, wenn die Sektionen umbrechen */
-@media (max-width: 768px) { /* Gilt für Modal auf Mobile */
-    .detailed-stats-container { flex-direction: column; }
-    .stats-divider { display: none; }
-}
-/* Zusätzliche Styling-Anpassungen für "Latest Backup Stats" auf der Hauptseite */
-#latestStatsOverview .detailed-stats-section {
-    padding: 15px; /* Etwas weniger Padding für die Hauptseite */
-}
-#latestStatsOverview .detailed-stats-section h3 {
-    font-size: 1.1rem;
-    padding-bottom: 8px;
-    margin-bottom: 15px;
-}
-#latestStatsOverview .main-stats {
-    gap: 12px;
-    margin-bottom: 20px;
-}
+
+/* Anpassungen für Latest Backup Stats auf der Hauptseite */
+#latestStatsOverview .detailed-stats-section { padding: 15px; }
+#latestStatsOverview .detailed-stats-section h3 { font-size: 1.1rem; padding-bottom: 8px; margin-bottom: 15px; }
+#latestStatsOverview .main-stats { gap: 12px; margin-bottom: 20px; }
 #latestStatsOverview .stat-box { padding: 12px 10px; }
 #latestStatsOverview .stat-value { font-size: 1.5rem; }
 #latestStatsOverview .status-grid { gap: 8px; }
@@ -432,12 +428,31 @@ button:disabled {
 }
 
 
-/* Mobile Styles (Anpassungen an bestehenden Breakpoints) */
-@media (max-width: 768px) {
-    body { padding: 15px 10px; } /* Weniger horizontales Padding */
-    .container { padding: 0 5px; }
+/* --- Media Queries für iPad und kleinere Bildschirme --- */
+@media (max-width: 1024px) { /* Gilt für iPad im Hochformat und kleinere Tablets */
+    .container { padding: 0 10px; }
+    .section { padding: 20px; }
+    h1 { font-size: 1.8rem; }
+    h2 { font-size: 1.4rem; }
+
+    .detailed-stats-section {
+        min-width: 280px; 
+    }
+    /* Für Manga Stats auf Tablets ggf. 2x2 Grid, wenn 4 nebeneinander zu eng werden, aber auto-fit sollte es handhaben */
+    .detailed-stats-section[data-type="manga"] .main-stats {
+         /* grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* Wenn 4 zu eng werden */
+    }
+     .status-grid {
+        /* repeat(5, 1fr) sollte auf den meisten Tablets passen */
+        /* grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); /* Alternative für mehr Flexibilität */
+    }
+}
+
+
+@media (max-width: 768px) { /* Gilt für kleinere Tablets im Hochformat und große Smartphones */
+    body { padding: 15px 10px; }
     .section { padding: 20px 15px; margin-bottom: 20px; }
-    .section-header { flex-direction: column; align-items: stretch; } /* Header-Elemente untereinander */
+    .section-header { flex-direction: column; align-items: stretch; }
     .section-header h1 { text-align: center; }
     .section-header .input-group { flex-direction: column; width: 100%; }
     .section-header .input-group input[type="text"] { width: 100% !important; }
@@ -448,11 +463,10 @@ button:disabled {
     .input-group { flex-direction: column; align-items: stretch; }
     .input-group > div[style*="flex-direction: column"] { width: 100%; }
     .auto-backup-controls .input-row { justify-content: space-between; }
-    .auto-backup-controls input[type="number"] { width: 60px !important; } /* Noch schmaler auf Mobile */
-
+    .auto-backup-controls input[type="number"] { width: 60px !important; }
     input[type="text"], input[type="number"], button { width: 100% !important; margin: 5px 0; }
 
-    .table { border-spacing: 0 10px; /* Etwas weniger Abstand für Mobile */ }
+    .table { border-spacing: 0 10px; }
     .table thead { display: none; }
     .table tbody tr { display: block; margin-bottom: 15px; border-radius: var(--border-radius-medium); box-shadow: var(--shadow-soft); }
     .table td { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--border-color); text-align: right; }
@@ -464,13 +478,24 @@ button:disabled {
     .modal-content { padding: 20px; margin: 3vh auto; width: 95%; }
     #statsContentContainer { max-height: 80vh; }
 
-    .detailed-stats-section { min-width: unset; /* Auf Mobile volle Breite erlauben */ }
-    .main-stats { grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); } /* Kleinere Basis für Mobile */
+    .detailed-stats-container { flex-direction: column; } /* Stats untereinander auf Mobile */
+    .stats-divider { display: none; }
+    .detailed-stats-section { min-width: unset; }
+    /* Auf Mobile sollen alle main-stats und status-grids gut umbrechen */
+    .detailed-stats-section .main-stats {
+        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    }
+     .status-grid {
+        grid-template-columns: repeat(auto-fit, minmax(55px, 1fr)); /* Kleinere Basis für Status-Boxen */
+    }
+    .stat-value { font-size: 1.5rem; } 
+    .status-count { font-size: 1.1rem; }
+
 
     .github-footer { padding: 10px; text-align: center; border-radius: 0; width: 100%; box-sizing: border-box; }
 }
 
-@media (max-width: 480px) { /* Feinabstimmung für sehr kleine Bildschirme */
+@media (max-width: 480px) { 
     body { padding: 10px 5px; }
     .section { padding: 15px 10px; }
     h1 { font-size: 1.4rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
@@ -478,7 +503,7 @@ button:disabled {
     #latestStatsOverview .stat-value, .modal-content .stat-value { font-size: 1.3rem; }
     #latestStatsOverview .status-count, .modal-content .status-count { font-size: 1rem; }
     
-    .table td { flex-direction: column; align-items: flex-start; } /* Labels über den Werten auf sehr kleinen Screens */
+    .table td { flex-direction: column; align-items: flex-start; } 
     .table td:before { margin-bottom: 4px; }
     .table .actions button { font-size: 0.8rem; padding: 8px 10px; }
 
