@@ -1,14 +1,14 @@
 /* Variables */
 :root {
-  --background-primary: #121212; /* Etwas dunkleres Primär-Schwarz/Grau */
-  --background-secondary: #1e1e1e; /* Leicht helleres Sekundär für Karten/Sektionen */
-  --background-tertiary: #282828; /* Für Input-Felder, Tabellen-Header */
+  --background-primary: #121212; 
+  --background-secondary: #1e1e1e; 
+  --background-tertiary: #282828; 
   
-  --text-primary: #e0e0e0; /* Leicht gedämpftes Weiß für besseren Kontrast auf dunklem Grund */
-  --text-secondary: #b0b0b0; /* Für Labels und sekundären Text */
+  --text-primary: #e0e0e0; 
+  --text-secondary: #b0b0b0; 
   --text-placeholder: #757575;
 
-  --border-color: #353535; /* Subtile Trennlinien */
+  --border-color: #353535; 
   --border-radius-small: 4px;
   --border-radius-medium: 8px;
   --border-radius-large: 12px;
@@ -16,28 +16,28 @@
   --shadow-soft: 0 2px 4px rgba(0,0,0,0.2);
   --shadow-medium: 0 4px 8px rgba(0,0,0,0.3);
 
-  --status-watching: #3b82f6;    /* Blau */
-  --status-reading: #3b82f6;     /* Blau */
-  --status-completed: #22c55e;  /* Grün */
-  --status-on-hold: #f59e0b;    /* Orange/Gelb für On-Hold (Tailwind amber-500) */
-  --status-dropped: #ef4444;    /* Rot */
-  --status-planning: #8b5cf6;   /* Lila */
+  --status-watching: #3b82f6;    
+  --status-reading: #3b82f6;     
+  --status-completed: #22c55e;  
+  --status-on-hold: #f59e0b;    
+  --status-dropped: #ef4444;    
+  --status-planning: #8b5cf6;   
   
   --btn-blue: var(--status-watching);
   --btn-green: var(--status-completed);
-  --btn-yellow: var(--status-on-hold); /* Jetzt korrekt zugewiesen */
+  --btn-yellow: var(--status-on-hold); 
   --btn-red: var(--status-dropped);
   --btn-purple: var(--status-planning);
 }
 
 /* Global Styles */
 body {
-   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif; /* Modernere Font-Stack */
+   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif; 
    background-color: var(--background-primary);
    color: var(--text-primary);
    margin: 0;
-   padding: 20px; /* Mehr Padding am Body */
-   line-height: 1.6; /* Bessere Lesbarkeit */
+   padding: 20px; 
+   line-height: 1.6; 
 }
 
 /* Custom Scrollbar */
@@ -47,95 +47,55 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: #5a5a5a; }
 
 .container {
-   width: 100%; /* Volle Breite nutzen */
-   max-width: 1280px; /* Maximale Breite für große Bildschirme */
+   width: 100%; 
+   max-width: 1280px; 
    margin: 0 auto;
-   padding: 0 15px; /* Links/Rechts Padding im Container */
+   padding: 0 15px; 
 }
 
 /* Headings */
-h1, h2, h3, h4 {
-   margin-top: 0;
-   font-weight: 600; /* Etwas fetter für bessere Hierarchie */
-   color: var(--text-primary);
-}
-h1 { font-size: 2rem; margin-bottom: 1.5rem; } /* Größerer Titel */
-h2 { font-size: 1.5rem; margin-bottom: 1.2rem; } /* Hauptsektions-Titel */
-h3 { font-size: 1.25rem; margin-bottom: 1rem; } /* Unter-Sektions-Titel (z.B. Anime/Manga Stats) */
-h4 { font-size: 1rem; margin-bottom: 0.8rem; color: var(--text-secondary); } /* Kleinere Titel, z.B. Status Distribution */
+h1, h2, h3, h4 { margin-top: 0; font-weight: 600; color: var(--text-primary); }
+h1 { font-size: 2rem; margin-bottom: 1.5rem; } 
+h2 { font-size: 1.5rem; margin-bottom: 1.2rem; } 
+h3 { font-size: 1.25rem; margin-bottom: 1rem; } 
+h4 { font-size: 1rem; margin-bottom: 0.8rem; color: var(--text-secondary); } 
 
 
 /* Section Styling */
 .section {
    background-color: var(--background-secondary);
-   border-radius: var(--border-radius-large); /* Größerer Radius für modernes Aussehen */
-   padding: 25px 30px; /* Mehr Padding */
-   margin-bottom: 30px; /* Mehr Abstand zwischen Sektionen */
+   border-radius: var(--border-radius-large); 
+   padding: 25px 30px; 
+   margin-bottom: 30px; 
    box-shadow: var(--shadow-soft);
 }
-/* Spezifische Anpassung für die Header-Sektion (Manual Backup & Titel) */
 .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap; /* Umbruch auf kleineren Schirmen */
-    gap: 20px;
-    padding-bottom: 10px; /* Weniger Padding unten, da es nur der Header ist */
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 20px; padding-bottom: 10px; 
 }
 .section-header h1 { margin-bottom: 0; font-size: 1.8rem; }
 .section-header .input-group { margin-bottom: 0; }
 
 
 /* Input Styles */
-.input-group {
-   display: flex;
-   gap: 12px; /* Etwas mehr Gap */
-   margin-bottom: 20px; /* Mehr Abstand unten */
-   align-items: center;
-}
-.input-group label { /* Für explizite Labels, falls verwendet */
-    color: var(--text-secondary);
-    margin-right: 8px;
-    font-size: 0.9rem;
-}
-/* Anpassung für Auto-Backup Inputs */
-.auto-backup-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-.auto-backup-controls .input-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.auto-backup-controls .input-row span {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-}
-.auto-backup-controls input[type="number"] {
-    width: 80px !important; /* Feste Breite für diese speziellen Inputs */
-}
+.input-group { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; }
+.input-group label { color: var(--text-secondary); margin-right: 8px; font-size: 0.9rem; }
+.auto-backup-controls { display: flex; flex-direction: column; gap: 15px; }
+.auto-backup-controls .input-row { display: flex; align-items: center; gap: 10px; }
+.auto-backup-controls .input-row span { color: var(--text-secondary); font-size: 0.9rem; }
+.auto-backup-controls input[type="number"] { width: 80px !important; } 
 
 
 input[type="text"], input[type="number"] {
-   background-color: var(--background-tertiary);
-   border: 1px solid var(--border-color);
-   padding: 10px 14px; /* Mehr Padding */
-   border-radius: var(--border-radius-medium); /* Konsistenter Radius */
-   color: var(--text-primary);
-   font-size: 0.95rem;
-   height: 44px; /* Einheitliche Höhe */
-   box-sizing: border-box;
+   background-color: var(--background-tertiary); border: 1px solid var(--border-color);
+   padding: 10px 14px; border-radius: var(--border-radius-medium); 
+   color: var(--text-primary); font-size: 0.95rem; height: 44px; box-sizing: border-box;
    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-input[type="text"]::placeholder, input[type="number"]::placeholder {
-    color: var(--text-placeholder);
-}
+input[type="text"]::placeholder, input[type="number"]::placeholder { color: var(--text-placeholder); }
 input[type="text"]:focus, input[type="number"]:focus {
-    outline: none;
-    border-color: var(--btn-blue);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); /* Deutlicherer Fokus */
+    outline: none; border-color: var(--btn-blue);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); 
 }
 input[type="text"] { width: 220px; }
 input[type="number"] { text-align: center; }
@@ -143,129 +103,71 @@ input[type="number"] { text-align: center; }
 
 /* Buttons */
 button {
-   padding: 10px 20px; /* Angepasstes Padding */
-   border: none;
-   border-radius: var(--border-radius-medium); /* Konsistenter Radius */
-   cursor: pointer;
-   font-weight: 500; 
-   font-size: 0.95rem; /* Leicht angepasst */
-   min-width: 120px; /* Mindestbreite */
-   color: white;
-   transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+   padding: 10px 20px; border: none; border-radius: var(--border-radius-medium); 
+   cursor: pointer; font-weight: 500; 
+   font-size: 0.95rem; min-width: 120px; 
+   color: white; transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
    text-align: center;
 }
-button:hover {
-    transform: translateY(-1px); /* Leichter Hover-Effekt */
-    box-shadow: var(--shadow-soft);
-}
-button:active {
-    transform: translateY(0px);
-    box-shadow: none;
-}
-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-}
+button:hover { transform: translateY(-1px); box-shadow: var(--shadow-soft); }
+button:active { transform: translateY(0px); box-shadow: none; }
+button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
 
 .btn-blue { background-color: var(--btn-blue); }
 .btn-green { background-color: var(--btn-green); }
 .btn-purple { background-color: var(--btn-purple); }
-.btn-yellow { background-color: var(--btn-yellow); } /* Verwendet jetzt die neue --status-on-hold Farbe */
+.btn-yellow { background-color: var(--btn-yellow); } 
 .btn-red { background-color: var(--btn-red); }
 
 .btn-blue:hover { background-color: #2563eb; }
 .btn-green:hover { background-color: #16a34a; }
-.btn-yellow:hover { background-color: #d97706; } /* Tailwind amber-600 als Hover für on-hold */
+.btn-yellow:hover { background-color: #d97706; } 
 .btn-red:hover { background-color: #dc2626; }
 .btn-purple:hover { background-color: #7c3aed; }
 
 
 /* Table Styles ("Previous Backups") */
-.table {
-   width: 100%;
-   border-collapse: separate; 
-   border-spacing: 0 8px; /* Vertikaler Abstand zwischen den Zeilen, macht sie kartenähnlicher */
-}
-.table th, .table td {
-   padding: 14px 16px;
-   text-align: left;
-   vertical-align: middle; /* Bessere vertikale Ausrichtung */
-}
-.table thead tr { /* Header-Zeile direkt gestalten */
-    background-color: transparent; /* Kein eigener Hintergrund für die Header-Wrapper-Zeile */
-}
+.table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+.table th, .table td { padding: 14px 16px; text-align: left; vertical-align: middle; }
+.table thead tr { background-color: transparent; }
 .table th {
-   background-color: var(--background-tertiary);
-   color: var(--text-secondary);
-   font-weight: 600; /* Fetter für Header */
-   font-size: 0.9rem;
-   text-transform: uppercase; /* Optional: Header in Großbuchstaben */
-   letter-spacing: 0.5px; /* Optional: Etwas mehr Buchstabenabstand */
+   background-color: var(--background-tertiary); color: var(--text-secondary);
+   font-weight: 600; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;
 }
-/* Ecken für erste und letzte Header-Zelle abrunden */
 .table th:first-child { border-top-left-radius: var(--border-radius-medium); border-bottom-left-radius: var(--border-radius-medium); }
 .table th:last-child { border-top-right-radius: var(--border-radius-medium); border-bottom-right-radius: var(--border-radius-medium); }
-
 .table tbody tr {
-    background-color: var(--background-tertiary); /* Hintergrund für jede Datenzeile */
-    border-radius: var(--border-radius-medium); /* Abgerundete Ecken für jede Zeile */
-    box-shadow: var(--shadow-soft);
-    transition: background-color 0.2s ease, transform 0.2s ease;
+    background-color: var(--background-tertiary); border-radius: var(--border-radius-medium); 
+    box-shadow: var(--shadow-soft); transition: background-color 0.2s ease, transform 0.2s ease;
 }
-.table tbody tr:hover {
-    background-color: #303030; /* Leicht hellerer Hover */
-    transform: translateY(-2px); /* Leichter Anhebe-Effekt */
-}
-.table td {
-    border-bottom: none; /* Keine einzelnen Linien mehr zwischen Zellen */
-    font-size: 0.9rem;
-}
+.table tbody tr:hover { background-color: #303030; transform: translateY(-2px); }
+.table td { border-bottom: none; font-size: 0.9rem; }
 .table td:first-child { border-top-left-radius: var(--border-radius-medium); border-bottom-left-radius: var(--border-radius-medium); }
 .table td:last-child { border-top-right-radius: var(--border-radius-medium); border-bottom-right-radius: var(--border-radius-medium); }
-
-.table .actions button { /* Buttons in der Tabelle */
-    padding: 8px 14px; /* Kleinere Buttons in der Tabelle */
-    font-size: 0.85rem;
-    min-width: 80px;
-    margin-right: 6px;
-}
+.table .actions button { padding: 8px 14px; font-size: 0.85rem; min-width: 80px; margin-right: 6px; }
 .table .actions button:last-child { margin-right: 0; }
 
 
 /* Modal Styling */
 .modal {
    display: none; position: fixed; z-index: 1000; left: 0; top: 0;
-   width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); /* Noch dunklerer Overlay */
-   overflow-y: auto; padding: 20px; /* Padding, damit Modal nicht am Rand klebt */
-   box-sizing: border-box;
+   width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); 
+   overflow-y: auto; padding: 20px; box-sizing: border-box;
 }
 .modal-content {
-    padding: 30px; /* Mehr Padding im Modal */
-    width: 100%;
-    max-width: 900px; 
-    background-color: var(--background-secondary);
-    margin: 5vh auto;
-    border-radius: var(--border-radius-large); /* Größerer Radius */
-    box-shadow: var(--shadow-medium); /* Deutlicherer Schatten */
-    position: relative;
+    padding: 30px; width: 100%; max-width: 900px; 
+    background-color: var(--background-secondary); margin: 5vh auto;
+    border-radius: var(--border-radius-large); box-shadow: var(--shadow-medium); position: relative;
 }
-#statsContentContainer { max-height: 75vh; overflow-y: auto; padding-right: 10px; /* Platz für Scrollbar */ }
-.modal-content h2 { text-align: center; margin-bottom: 25px; } /* Modal-Titel zentrieren */
+#statsContentContainer { max-height: 75vh; overflow-y: auto; padding-right: 10px; }
+.modal-content h2 { text-align: center; margin-bottom: 25px; } 
 
 
 /* Logs Section */
 .logs {
-   padding: 20px;
-   font-family: "Fira Code", "Consolas", monospace; /* Gute Monospace Fonts */
-   font-size: 0.85rem;
-   max-height: 350px; /* Etwas höher */
-   overflow-y: auto;
-   background-color: var(--background-primary);
-   border: 1px solid var(--border-color);
-   border-radius: var(--border-radius-medium);
-   line-height: 1.6;
+   padding: 20px; font-family: "Fira Code", "Consolas", monospace; font-size: 0.85rem;
+   max-height: 350px; overflow-y: auto; background-color: var(--background-primary);
+   border: 1px solid var(--border-color); border-radius: var(--border-radius-medium); line-height: 1.6;
 }
 .log-entry { margin: 6px 0; padding: 4px 8px; border-radius: var(--border-radius-small); }
 .log-entry span:first-child { color: var(--text-secondary); margin-right: 12px; }
@@ -275,9 +177,9 @@ button:disabled {
 
 /* Close Button (Modal) */
 .close {
-   color: var(--text-secondary);
-   position: absolute; top: 15px; right: 20px; font-size: 32px; font-weight: bold;
-   cursor: pointer; transition: color 0.2s ease, transform 0.2s ease;
+   color: var(--text-secondary); position: absolute; top: 15px; right: 20px; 
+   font-size: 32px; font-weight: bold; cursor: pointer; 
+   transition: color 0.2s ease, transform 0.2s ease;
 }
 .close:hover, .close:focus { color: var(--text-primary); transform: scale(1.1); }
 
@@ -289,13 +191,9 @@ button:disabled {
 
 /* GitHub Footer */
 .github-footer {
-    position: fixed; bottom: 0; left: 0; /* Links positionieren */
-    width: auto; /* Automatische Breite */
-    padding: 8px 12px; /* Weniger Padding */
-    background-color: var(--background-secondary); /* Passend zum Sektionshintergrund */
-    border-top-right-radius: var(--border-radius-medium);
-    font-size: 0.85rem; z-index: 100;
-    box-shadow: 0 -2px 8px rgba(0,0,0,0.2); /* Leichter Schatten nach oben */
+    position: fixed; bottom: 0; left: 0; width: auto; padding: 8px 12px; 
+    background-color: var(--background-secondary); border-top-right-radius: var(--border-radius-medium);
+    font-size: 0.85rem; z-index: 100; box-shadow: 0 -2px 8px rgba(0,0,0,0.2); 
 }
 .github-footer a { color: #58a6ff; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
 .github-footer a:hover { color: #79b8ff !important; text-decoration: underline; }
@@ -309,60 +207,67 @@ button:disabled {
     padding: 10px 0;
     flex-wrap: wrap; 
 }
-.detailed-stats-section { /* Gilt für Anime und Manga Blöcke */
+.detailed-stats-section { 
     flex: 1;
-    min-width: 300px; /* Beibehalten für generelle Responsivität */
-    background-color: var(--background-tertiary); /* Leichter Kontrast zur Sektion */
+    min-width: 300px; 
+    background-color: var(--background-tertiary); 
     border-radius: var(--border-radius-large);
     padding: 20px;
     box-shadow: var(--shadow-soft);
 }
-.detailed-stats-section h3 { /* Titel in den Stats-Sektionen (Anime/Manga) */
+.detailed-stats-section h3 { 
     font-size: 1.15rem; 
     margin: 0 0 20px 0;
     text-align: center;
     color: var(--text-primary);
     font-weight: 600;
-    border-bottom: 1px solid var(--border-color); /* Subtile Trennlinie */
+    border-bottom: 1px solid var(--border-color); 
     padding-bottom: 10px;
 }
 
-.main-stats { /* Grid für "Total Entries", "Episodes", "Mean Score" */
+.main-stats { 
     display: grid;
     gap: 16px;
     margin-bottom: 25px;
 }
-/* Spezifisch für Anime: 3 Spalten */
 .detailed-stats-section[data-type="anime"] .main-stats {
     grid-template-columns: repeat(3, 1fr); 
 }
-/* Spezifisch für Manga: 4 Spalten */
 .detailed-stats-section[data-type="manga"] .main-stats {
     grid-template-columns: repeat(4, 1fr);
 }
 
-.stat-box { /* Einzelne Statistik-Karte */
-    background-color: var(--background-secondary); /* Noch eine Ebene tiefer für Kontrast */
-    padding: 16px 12px; /* Mehr vertikales Padding */
+.stat-box { 
+    background-color: var(--background-secondary); 
+    padding: 16px 12px; 
     border-radius: var(--border-radius-medium);
     text-align: center;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1); /* Leichter innerer Schatten */
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1); 
+    display: flex; /* Für vertikale Zentrierung von Label und Value */
+    flex-direction: column;
+    justify-content: center; /* Zentriert Inhalt vertikal */
+    min-height: 90px; /* Mindesthöhe, um Platz für "N/A" zu schaffen */
 }
 .stat-label {
     color: var(--text-secondary);
-    font-size: 0.8rem; /* Kleineres Label */
-    margin-bottom: 8px; /* Mehr Abstand zum Wert */
-    text-transform: uppercase; /* Labels in Großbuchstaben */
+    font-size: 0.75rem; /* Leicht kleiner für "N/A" Fall */
+    margin-bottom: 6px; /* Angepasster Abstand */
+    text-transform: uppercase; 
     letter-spacing: 0.5px;
+    line-height: 1.2; /* Für mögliche zweizeilige Labels */
 }
 .stat-value {
-    font-size: 1.75rem; /* Größerer Wert für Hervorhebung */
-    font-weight: 700; /* Fett */
+    font-size: 1.6rem; /* Leicht reduziert für Konsistenz und "N/A" */
+    font-weight: 700; 
     color: var(--text-primary);
-    line-height: 1.2; /* Engere Zeilenhöhe für große Zahlen */
+    line-height: 1.1; /* Engere Zeilenhöhe */
+    word-break: break-all; /* Stellt sicher, dass langer Text umbricht, obwohl N/A kurz ist */
 }
+/* Spezifische Anpassung für N/A, falls es immer noch Probleme gibt (optional) */
+/* .stat-value:contains("N/A") { font-size: 1.5rem; } /* CSS :contains ist nicht Standard, wäre JS Lösung */
 
-.status-title { /* Überschrift "Status Distribution" */
+
+.status-title { 
     font-size: 0.9rem;
     color: var(--text-secondary);
     margin-bottom: 12px;
@@ -372,64 +277,64 @@ button:disabled {
     letter-spacing: 0.5px;
 }
 
-.status-grid { /* Grid für die farbigen Status-Boxen */
+.status-grid { 
     display: grid;
-    grid-template-columns: repeat(5, 1fr); /* Immer 5 Spalten für Status */
+    grid-template-columns: repeat(5, 1fr); 
     gap: 10px;
 }
-.status-box { /* Einzelne farbige Status-Box */
+.status-box { 
     padding: 10px 6px;
-    border-radius: var(--border-radius-medium); /* Konsistenter Radius */
+    border-radius: var(--border-radius-medium); 
     text-align: center;
     transition: transform 0.2s ease, opacity 0.2s ease;
-    color: white; /* Text immer weiß in Status-Boxen */
+    color: white; 
     font-weight: 500;
+    min-height: 60px; /* Mindesthöhe für Statusboxen */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 }
-.status-box:hover { transform: scale(1.05); opacity: 0.95; } /* Größerer Hover-Effekt */
+.status-box:hover { transform: scale(1.05); opacity: 0.95; } 
 
 .status-count {
-    font-size: 1.2rem; /* Größere Zahl */
+    font-size: 1.2rem; 
     font-weight: 700;
-    margin-bottom: 2px; /* Weniger Abstand zum Label */
+    margin-bottom: 2px; 
 }
 .status-label {
-    font-size: 0.7rem; /* Kleineres Label */
-    opacity: 0.9; /* Leicht transparent */
-    text-transform: capitalize; /* Erster Buchstabe groß */
+    font-size: 0.7rem; 
+    opacity: 0.9; 
+    text-transform: capitalize; 
+    line-height: 1.1; /* Für mögliche zweizeilige Labels */
 }
 
-/* Status Farben Zuweisung */
 .status-box.watching, .status-box.reading { background-color: var(--status-watching); }
 .status-box.completed { background-color: var(--status-completed); }
-.status-box.on-hold { background-color: var(--status-on-hold); } /* Nutzt jetzt die Variable */
+.status-box.on-hold { background-color: var(--status-on-hold); } 
 .status-box.dropped { background-color: var(--status-dropped); }
 .status-box.planning { background-color: var(--status-planning); }
 
-.stats-divider { /* Vertikale Trennlinie im Modal */
-    width: 1px;
-    background-color: var(--border-color); /* Subtile Farbe */
-    align-self: stretch; /* Dehnt sich über die Höhe des Flex-Containers */
-}
+.stats-divider { width: 1px; background-color: var(--border-color); align-self: stretch; }
 
-/* Anpassungen für Latest Backup Stats auf der Hauptseite */
+
 #latestStatsOverview .detailed-stats-section { padding: 15px; }
 #latestStatsOverview .detailed-stats-section h3 { font-size: 1.1rem; padding-bottom: 8px; margin-bottom: 15px; }
 #latestStatsOverview .main-stats { gap: 12px; margin-bottom: 20px; }
-#latestStatsOverview .stat-box { padding: 12px 10px; }
-#latestStatsOverview .stat-value { font-size: 1.5rem; }
+#latestStatsOverview .stat-box { padding: 12px 10px; min-height: 80px; }
+#latestStatsOverview .stat-value { font-size: 1.4rem; } 
 #latestStatsOverview .status-grid { gap: 8px; }
-#latestStatsOverview .status-box { padding: 8px 5px; }
-#latestStatsOverview .status-count { font-size: 1.1rem; }
+#latestStatsOverview .status-box { padding: 8px 5px; min-height: 55px;}
+#latestStatsOverview .status-count { font-size: 1rem; } 
 #latestStatsOverview .status-label { font-size: 0.65rem; }
-#latestStatsOverview > p[style*="font-size: 0.8rem"] { /* "Last updated" Text */
+#latestStatsOverview > p[style*="font-size: 0.8rem"] { 
     margin-top: 15px;
-    font-size: 0.85rem !important; /* Etwas größer und !important, um Inline-Style zu überschreiben */
+    font-size: 0.85rem !important; 
     color: var(--text-secondary);
 }
 
 
-/* --- Media Queries für iPad und kleinere Bildschirme --- */
-@media (max-width: 1024px) { /* Gilt für iPad im Hochformat und kleinere Tablets */
+@media (max-width: 1024px) { 
     .container { padding: 0 10px; }
     .section { padding: 20px; }
     h1 { font-size: 1.8rem; }
@@ -438,18 +343,18 @@ button:disabled {
     .detailed-stats-section {
         min-width: 280px; 
     }
-    /* Für Manga Stats auf Tablets ggf. 2x2 Grid, wenn 4 nebeneinander zu eng werden, aber auto-fit sollte es handhaben */
     .detailed-stats-section[data-type="manga"] .main-stats {
-         /* grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* Wenn 4 zu eng werden */
+         /* grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); */
     }
      .status-grid {
-        /* repeat(5, 1fr) sollte auf den meisten Tablets passen */
-        /* grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); /* Alternative für mehr Flexibilität */
+        /* grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); */
     }
+    .stat-value { font-size: 1.5rem; } /* Generell etwas kleiner für Tablets */
+    .status-count { font-size: 1.1rem; }
 }
 
 
-@media (max-width: 768px) { /* Gilt für kleinere Tablets im Hochformat und große Smartphones */
+@media (max-width: 768px) { 
     body { padding: 15px 10px; }
     .section { padding: 20px 15px; margin-bottom: 20px; }
     .section-header { flex-direction: column; align-items: stretch; }
@@ -478,18 +383,17 @@ button:disabled {
     .modal-content { padding: 20px; margin: 3vh auto; width: 95%; }
     #statsContentContainer { max-height: 80vh; }
 
-    .detailed-stats-container { flex-direction: column; } /* Stats untereinander auf Mobile */
+    .detailed-stats-container { flex-direction: column; } 
     .stats-divider { display: none; }
     .detailed-stats-section { min-width: unset; }
-    /* Auf Mobile sollen alle main-stats und status-grids gut umbrechen */
     .detailed-stats-section .main-stats {
-        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); /* Noch kleinere Basis für Mobile */
     }
      .status-grid {
-        grid-template-columns: repeat(auto-fit, minmax(55px, 1fr)); /* Kleinere Basis für Status-Boxen */
+        grid-template-columns: repeat(auto-fit, minmax(50px, 1fr)); /* Sehr kleine Basis für Status-Boxen */
     }
-    .stat-value { font-size: 1.5rem; } 
-    .status-count { font-size: 1.1rem; }
+    .stat-value { font-size: 1.4rem; } 
+    .status-count { font-size: 1rem; } 
 
 
     .github-footer { padding: 10px; text-align: center; border-radius: 0; width: 100%; box-sizing: border-box; }
@@ -500,8 +404,8 @@ button:disabled {
     .section { padding: 15px 10px; }
     h1 { font-size: 1.4rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
     
-    #latestStatsOverview .stat-value, .modal-content .stat-value { font-size: 1.3rem; }
-    #latestStatsOverview .status-count, .modal-content .status-count { font-size: 1rem; }
+    #latestStatsOverview .stat-value, .modal-content .stat-value { font-size: 1.2rem; } /* Noch kleiner */
+    #latestStatsOverview .status-count, .modal-content .status-count { font-size: 0.9rem; } /* Noch kleiner */
     
     .table td { flex-direction: column; align-items: flex-start; } 
     .table td:before { margin-bottom: 4px; }
