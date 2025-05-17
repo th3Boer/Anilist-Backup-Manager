@@ -24,8 +24,8 @@
         </div>
 
         <div class="section">
-            <div style="display: flex; justify-content: space-between;">
-                <div style="flex: 1;">
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 20px;">
+                <div style="flex: 1; min-width: 300px;">
                     <h2>Auto Backup</h2>
                     <div class="input-group">
                         <input type="text" placeholder="Enter username" id="autoUsername">
@@ -35,19 +35,33 @@
                         <div style="display: flex; flex-direction: column; gap: 10px;">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <span style="color: #ffffff; font-size: 1rem;">Keep last</span>
-                                <input type="number" id="keepLastBackups" style="width: 100px; margin: 0;">
+                                <input type="number" id="keepLastBackups" style="width: 100px; margin: 0;" value="5">
                                 <span style="color: #ffffff; font-size: 1rem;">backups</span>
                             </div>
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <span style="color: #ffffff; font-size: 1rem;">Every</span>
-                                <input type="number" id="backupInterval" style="width: 100px; margin: 0;">
+                                <input type="number" id="backupInterval" style="width: 100px; margin: 0;" value="24">
                                 <span style="color: #ffffff; font-size: 1rem;">hours</span>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div style="flex: 1;">
-                    <div id="statsOverview"></div>
+                <div style="flex: 1; min-width: 300px;">
+                    <h2>Latest Backup Stats</h2>
+                    <div id="latestStatsOverview">
+                        <!-- Stats will be loaded here by JS -->
+                        {% if latest_stats %}
+                            <script>
+                                // Pass initial data to JS if available
+                                const initialLatestStats = {{ latest_stats | tojson }};
+                            </script>
+                        {% else %}
+                            <script>
+                                const initialLatestStats = null;
+                            </script>
+                            <p>No backup data available yet. Create a backup to see stats here.</p>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -55,6 +69,7 @@
         <div class="section">
             <h2>Logs</h2>
             <div class="logs" id="logContainer">
+                <!-- Logs will be loaded here -->
             </div>
         </div>
 
@@ -70,6 +85,7 @@
                     </tr>
                 </thead>
                 <tbody id="backupsTableBody">
+                    <!-- Backups will be listed here -->
                 </tbody>
             </table>
         </div>
@@ -78,9 +94,10 @@
     <!-- Stats Modal -->
     <div id="statsModal" class="modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Detailed Statistics</h2>
-            <div id="statsContent">
+            <span class="close" onclick="closeStatsModal()">×</span> <!-- Added onclick -->
+            <h2>Detailed Statistics for <span id="statsModalUsername"></span></h2>
+            <div id="statsContentContainer">
+                <!-- Detailed stats will be rendered here using new structure -->
             </div>
         </div>
     </div>
@@ -95,7 +112,11 @@
             th3Boer/Anilist-Backup-Manager
         </a>
     </div>
-
+    <!-- Add this script block at the end of your body -->
+    <script>
+        // Make initialLatestStats globally available if passed from template
+        window.initialLatestStats = typeof initialLatestStats !== 'undefined' ? initialLatestStats : null;
+    </script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
