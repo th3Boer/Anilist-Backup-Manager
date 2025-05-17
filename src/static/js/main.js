@@ -1,9 +1,9 @@
 const MAX_LOG_ENTRIES_DISPLAY = 100;
-let sseEventSource = null; // Keep a reference to close it if needed
+let sseEventSource = null; 
 
 document.addEventListener('DOMContentLoaded', () => {
     loadBackups();
-    loadLogs(); // Initial load of all logs
+    loadLogs(); 
     checkAutoBackupStatus();
     setupSSE();
     
@@ -27,13 +27,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function setupSSE() {
     if (sseEventSource) {
-        sseEventSource.close(); // Close existing connection if any
+        sseEventSource.close(); 
     }
     sseEventSource = new EventSource("/events");
 
     sseEventSource.onopen = function() {
         // console.log("SSE Connection Opened.");
-        // No need to add log here, server side will log if necessary
     };
 
     sseEventSource.onmessage = function(event) {
@@ -47,8 +46,7 @@ function setupSSE() {
 
             if (parsedData.type === 'backup_created') {
                 showNotification(`Backup created for ${parsedData.data.username}`, 'success');
-                loadBackups(); // Refresh backup list
-                // Log for this event is already added by save_log in backend, no need to call loadLogs()
+                loadBackups(); 
                 if (parsedData.data.stats) {
                     const fullStatsData = {
                         anime: parsedData.data.stats.anime,
@@ -65,9 +63,8 @@ function setupSSE() {
             } else if (parsedData.type === 'latest_stats_updated') {
                 displayLatestStats(parsedData.data); 
             } else if (parsedData.type === 'log_updated') {
-                // A new log entry was sent from the server
                 if (parsedData.data) {
-                    appendLogEntryToDisplay(parsedData.data); // Append only the new log
+                    appendLogEntryToDisplay(parsedData.data); 
                 }
             }
         } catch (e) {
@@ -81,16 +78,14 @@ function setupSSE() {
 
     sseEventSource.onerror = function(err) {
         console.error("EventSource failed:", err);
-        addLogEntryToUI("[SYSTEM] SSE connection error. Real-time updates stopped.", false); // Add to UI log directly
+        addLogEntryToUI("[SYSTEM] SSE connection error. Real-time updates stopped.", false); 
         if (sseEventSource) {
             sseEventSource.close();
         }
-        // Optionally, try to reconnect after a delay, but be careful about infinite loops
-        // setTimeout(setupSSE, 10000); // Reconnect after 10 seconds
+        // setTimeout(setupSSE, 10000); 
     };
 }
 
-// Appends a single new log entry from SSE to the display
 function appendLogEntryToDisplay(logEntryData) {
     const logContainer = document.getElementById('logContainer');
     if (!logContainer || !logEntryData) return;
@@ -103,11 +98,10 @@ function appendLogEntryToDisplay(logEntryData) {
     
     logContainer.appendChild(entry);
 
-    // Remove oldest log if > MAX_LOG_ENTRIES_DISPLAY
     while (logContainer.children.length > MAX_LOG_ENTRIES_DISPLAY) {
         logContainer.removeChild(logContainer.firstChild);
     }
-    logContainer.scrollTop = logContainer.scrollHeight; // Scroll to bottom
+    logContainer.scrollTop = logContainer.scrollHeight; 
 }
 
 
@@ -116,7 +110,7 @@ async function fetchLatestStats() {
         const response = await fetch('/latest-stats');
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const stats = await response.json();
-        displayLatestStats(stats); // stats can be {} if none
+        displayLatestStats(stats); 
     } catch (error) {
         console.error("Failed to fetch latest stats:", error);
         const statsOverviewDiv = document.getElementById('latestStatsOverview');
@@ -128,11 +122,11 @@ function displayLatestStats(statsData) {
     const statsOverviewDiv = document.getElementById('latestStatsOverview');
     if (!statsOverviewDiv) return;
 
-    if (!statsData || !statsData.anime || !statsData.manga || !statsData.username) { // Check for username too
+    if (!statsData || !statsData.anime || !statsData.manga || !statsData.username) { 
         statsOverviewDiv.innerHTML = '<p>No backup data available yet. Create a backup to see stats.</p>';
         return;
     }
-    // ... (rest of the displayLatestStats function remains the same as your previous version)
+    
     const { anime, manga, username, last_updated } = statsData;
     let lastUpdatedDate = 'N/A';
     if (last_updated) {
@@ -143,53 +137,51 @@ function displayLatestStats(statsData) {
     
     statsOverviewDiv.innerHTML = `
         <div class="detailed-stats-container" style="padding: 0; gap: 10px;">
-            <div class="detailed-stats-section" style="padding: 15px;">
+            <div class="detailed-stats-section" data-type="anime" style="padding: 15px;">
                 <h3 style="font-size: 1.2rem; margin-bottom: 15px;">Anime Stats (${username || 'N/A'})</h3>
-                <div class="main-stats" style="grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 15px;">
-                    <div class="stat-box" style="padding: 10px;"> <div class="stat-label">Total</div> <div class="stat-value">${anime.totalEntries !== undefined ? anime.totalEntries : 'N/A'}</div> </div>
-                    <div class="stat-box" style="padding: 10px;"> <div class="stat-label">Episodes</div> <div class="stat-value">${anime.episodesWatched !== undefined ? anime.episodesWatched : 'N/A'}</div> </div>
-                    <div class="stat-box" style="padding: 10px;"> <div class="stat-label">Mean Score</div> <div class="stat-value">${anime.meanScore !== undefined ? anime.meanScore.toFixed(1) : 'N/A'}</div> </div>
+                <div class="main-stats">
+                    <div class="stat-box"> <div class="stat-label">Total</div> <div class="stat-value">${anime.totalEntries !== undefined ? anime.totalEntries : 'N/A'}</div> </div>
+                    <div class="stat-box"> <div class="stat-label">Episodes</div> <div class="stat-value">${anime.episodesWatched !== undefined ? anime.episodesWatched : 'N/A'}</div> </div>
+                    <div class="stat-box"> <div class="stat-label">Mean Score</div> <div class="stat-value">${anime.meanScore !== undefined && anime.meanScore > 0 ? anime.meanScore.toFixed(1) : 'N/A'}</div> </div>
                 </div>
-                <div class="status-grid" style="gap: 6px;">
+                <div class="status-grid">
                     ${Object.entries(anime.status || {}).map(([status, count]) => `
-                        <div class="status-box ${status.toLowerCase().replace(/\s+/g, '-').replace('plan-to-watch', 'planning')}" style="padding: 6px;">
-                            <div class="status-count">${count}</div> <div class="status-label" style="font-size: 0.7rem;">${status.replace(/([A-Z])/g, ' $1').trim()}</div>
+                        <div class="status-box ${status.toLowerCase().replace(/\s+/g, '-').replace('plan-to-watch', 'planning').replace('_','-')}" style="padding: 6px;">
+                            <div class="status-count">${count}</div> <div class="status-label" style="font-size: 0.7rem;">${status.replace(/([A-Z]|_)/g, ' $1').trim().replace(/\b\w/g, l => l.toUpperCase())}</div>
                         </div>`).join('')}
                 </div>
             </div>
-            <div class="detailed-stats-section" style="padding: 15px;">
+            <div class="detailed-stats-section" data-type="manga" style="padding: 15px;">
                 <h3 style="font-size: 1.2rem; margin-bottom: 15px;">Manga Stats (${username || 'N/A'})</h3>
-                <div class="main-stats" style="grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 10px; margin-bottom: 15px;">
-                    <div class="stat-box" style="padding: 10px;"> <div class="stat-label">Total</div> <div class="stat-value">${manga.totalEntries !== undefined ? manga.totalEntries : 'N/A'}</div> </div>
-                    <div class="stat-box" style="padding: 10px;"> <div class="stat-label">Chapters</div> <div class="stat-value">${manga.chaptersRead !== undefined ? manga.chaptersRead : 'N/A'}</div> </div>
-                    <div class="stat-box" style="padding: 10px;"> <div class="stat-label">Volumes</div> <div class="stat-value">${manga.volumesRead !== undefined ? manga.volumesRead : 'N/A'}</div> </div>
-                    <div class="stat-box" style="padding: 10px;"> <div class="stat-label">Mean Score</div> <div class="stat-value">${manga.meanScore !== undefined ? manga.meanScore.toFixed(1) : 'N/A'}</div> </div>
+                <div class="main-stats">
+                    <div class="stat-box"> <div class="stat-label">Total</div> <div class="stat-value">${manga.totalEntries !== undefined ? manga.totalEntries : 'N/A'}</div> </div>
+                    <div class="stat-box"> <div class="stat-label">Chapters</div> <div class="stat-value">${manga.chaptersRead !== undefined ? manga.chaptersRead : 'N/A'}</div> </div>
+                    <div class="stat-box"> <div class="stat-label">Volumes</div> <div class="stat-value">${manga.volumesRead !== undefined ? manga.volumesRead : 'N/A'}</div> </div>
+                    <div class="stat-box"> <div class="stat-label">Mean Score</div> <div class="stat-value">${manga.meanScore !== undefined && manga.meanScore > 0 ? manga.meanScore.toFixed(1) : 'N/A'}</div> </div>
                 </div>
-                 <div class="status-grid" style="gap: 6px;">
+                 <div class="status-grid">
                     ${Object.entries(manga.status || {}).map(([status, count]) => `
-                        <div class="status-box ${status.toLowerCase().replace(/\s+/g, '-').replace('plan-to-read', 'planning')}" style="padding: 6px;">
-                            <div class="status-count">${count}</div> <div class="status-label" style="font-size: 0.7rem;">${status.replace(/([A-Z])/g, ' $1').trim()}</div>
+                        <div class="status-box ${status.toLowerCase().replace(/\s+/g, '-').replace('plan-to-read', 'planning').replace('_','-')}" style="padding: 6px;">
+                            <div class="status-count">${count}</div> <div class="status-label" style="font-size: 0.7rem;">${status.replace(/([A-Z]|_)/g, ' $1').trim().replace(/\b\w/g, l => l.toUpperCase())}</div>
                         </div>`).join('')}
                 </div>
             </div>
         </div>
-        <p style="font-size: 0.8rem; color: #ccc; text-align: center; margin-top: 10px;">Last updated: ${lastUpdatedDate}</p>`;
+        <p style="font-size: 0.8rem; color: var(--text-secondary); text-align: center; margin-top: 10px;">Last updated: ${lastUpdatedDate}</p>`;
 }
 
 
 async function manualBackup() {
     const usernameInput = document.getElementById('manualUsername');
-    const username = usernameInput.value.trim(); // Trim whitespace
+    const username = usernameInput.value.trim(); 
     if (!username) {
-        showNotification('Manual Backup: Please enter a username.', 'error', true); // Use alert for errors
+        showNotification('Manual Backup: Please enter a username.', 'error', true); 
         usernameInput.focus();
         return;
     }
 
-    // Give immediate feedback that something is happening
     showNotification(`Manual Backup: Starting backup for ${username}... This may take a moment.`, 'info');
-    // Disable button to prevent multiple clicks
-    const backupButton = usernameInput.nextElementSibling; // Assuming button is next sibling
+    const backupButton = usernameInput.nextElementSibling; 
     if(backupButton) backupButton.disabled = true;
 
     try {
@@ -198,26 +190,19 @@ async function manualBackup() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username })
         });
-        const result = await response.json(); // Try to parse JSON regardless of response.ok
+        const result = await response.json(); 
         
         if (response.ok && result.status === 'success') {
-            // Backend's save_log and SSE will handle the success log and UI updates (backup list, latest stats).
-            // We can show a success notification here for clarity.
             showNotification(result.message || `Manual backup for ${username} completed successfully.`, 'success');
         } else {
-            // Error message from server (result.error) or a generic HTTP error
             const errorMessage = result.error || `Backup request failed with status: ${response.status}`;
             throw new Error(errorMessage);
         }
     } catch (error) {
-        // Log the detailed error to console for debugging
         console.error('Manual Backup Error:', error);
-        // Show user-friendly error message using alert for high visibility
         showNotification(`Manual Backup Failed: ${error.message}`, 'error', true); 
-        // Also add to UI log
         addLogEntryToUI(`[ERROR] Manual backup for ${username} failed: ${error.message}`, false);
     } finally {
-        // Re-enable button
         if(backupButton) backupButton.disabled = false;
     }
 }
@@ -231,7 +216,7 @@ async function toggleAutoBackup() {
 
     const action = button.textContent === 'Start' ? 'start' : 'stop';
     showNotification(`Auto Backup: Attempting to ${action} for ${username || 'N/A'}...`, 'info');
-    button.disabled = true; // Disable button during operation
+    button.disabled = true; 
 
     try {
         let response;
@@ -250,14 +235,13 @@ async function toggleAutoBackup() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-        } else { // action === 'stop'
+        } else { 
             response = await fetch('/stop-auto-backup', { method: 'POST' });
         }
 
         const result = await response.json();
         if (response.ok && result.status === 'success') {
             showNotification(result.message || `Auto backup ${action}ed successfully.`, 'success');
-            // Backend's save_log and SSE handle further logging/UI updates.
         } else {
             throw new Error(result.error || `Failed to ${action} auto backup.`);
         }
@@ -266,7 +250,7 @@ async function toggleAutoBackup() {
         showNotification(`Auto Backup Failed: ${error.message}`, 'error', true);
         addLogEntryToUI(`[ERROR] Auto backup ${action} failed: ${error.message}`, false);
     } finally {
-        await checkAutoBackupStatus(); // Refresh button state and fields, re-enables button
+        await checkAutoBackupStatus(); 
     }
 }
 
@@ -276,7 +260,7 @@ async function checkAutoBackupStatus() {
     const keepLastInput = document.getElementById('keepLastBackups');
     const intervalInput = document.getElementById('backupInterval');
     
-    button.disabled = true; // Disable while checking
+    button.disabled = true; 
 
     try {
         const response = await fetch('/auto-backup-status');
@@ -300,10 +284,6 @@ async function checkAutoBackupStatus() {
                  usernameInput.value = result.config.username || '';
                  keepLastInput.value = result.config.keepLast || '5';
                  intervalInput.value = result.config.interval || '24';
-            } else { // No config, reset to defaults if desired or leave as is
-                // usernameInput.value = '';
-                // keepLastInput.value = '5';
-                // intervalInput.value = '24';
             }
             usernameInput.disabled = false;
             keepLastInput.disabled = false;
@@ -313,7 +293,7 @@ async function checkAutoBackupStatus() {
         console.error('Failed to get auto backup status:', error);
         addLogEntryToUI('[SYSTEM] Failed to get auto backup status.', false);
     } finally {
-        button.disabled = false; // Re-enable button
+        button.disabled = false; 
     }
 }
 
@@ -369,7 +349,6 @@ async function deleteBackup(backupId) {
         const response = await fetch(`/backup/${backupId}`, { method: 'DELETE' });
         const result = await response.json();
         if (response.ok && result.status === 'success') {
-            // SSE will handle UI updates (log, backup list refresh, latest stats check).
             showNotification(`Backup ${backupId} deleted successfully.`, 'success');
         } else {
             throw new Error(result.error || 'Failed to delete backup.');
@@ -404,38 +383,37 @@ async function openStatsModal(backupId, username) {
                 return;
             }
             const { anime, manga } = stats;
-            // ... (rest of the openStatsModal innerHTML remains the same as your previous version)
             statsContentContainer.innerHTML = `
                 <div class="detailed-stats-container">
-                    <div class="detailed-stats-section">
+                    <div class="detailed-stats-section" data-type="anime">
                         <h3>Anime Statistics</h3>
                         <div class="main-stats">
                             <div class="stat-box"> <div class="stat-label">Total Entries</div> <div class="stat-value">${anime.totalEntries !== undefined ? anime.totalEntries : 'N/A'}</div> </div>
                             <div class="stat-box"> <div class="stat-label">Episodes Watched</div> <div class="stat-value">${anime.episodesWatched !== undefined ? anime.episodesWatched : 'N/A'}</div> </div>
-                            <div class="stat-box"> <div class="stat-label">Mean Score</div> <div class="stat-value">${anime.meanScore !== undefined ? anime.meanScore.toFixed(1) : 'N/A'}</div> </div>
+                            <div class="stat-box"> <div class="stat-label">Mean Score</div> <div class="stat-value">${anime.meanScore !== undefined && anime.meanScore > 0 ? anime.meanScore.toFixed(1) : 'N/A'}</div> </div>
                         </div>
                         <h4 class="status-title">Status Distribution</h4>
                         <div class="status-grid">
                             ${Object.entries(anime.status || {}).map(([status, count]) => `
-                                <div class="status-box ${status.toLowerCase().replace(/\s+/g, '-').replace('plan-to-watch', 'planning')}">
-                                    <div class="status-count">${count}</div> <div class="status-label">${status.replace(/([A-Z])/g, ' $1').trim()}</div>
+                                <div class="status-box ${status.toLowerCase().replace(/\s+/g, '-').replace('plan-to-watch', 'planning').replace('_','-')}">
+                                    <div class="status-count">${count}</div> <div class="status-label">${status.replace(/([A-Z]|_)/g, ' $1').trim().replace(/\b\w/g, l => l.toUpperCase())}</div>
                                 </div>`).join('')}
                         </div>
                     </div>
                     <div class="stats-divider"></div>
-                    <div class="detailed-stats-section">
+                    <div class="detailed-stats-section" data-type="manga">
                         <h3>Manga Statistics</h3>
                         <div class="main-stats">
                             <div class="stat-box"> <div class="stat-label">Total Entries</div> <div class="stat-value">${manga.totalEntries !== undefined ? manga.totalEntries : 'N/A'}</div> </div>
                             <div class="stat-box"> <div class="stat-label">Chapters Read</div> <div class="stat-value">${manga.chaptersRead !== undefined ? manga.chaptersRead : 'N/A'}</div> </div>
                             <div class="stat-box"> <div class="stat-label">Volumes Read</div> <div class="stat-value">${manga.volumesRead !== undefined ? manga.volumesRead : 'N/A'}</div> </div>
-                            <div class="stat-box"> <div class="stat-label">Mean Score</div> <div class="stat-value">${manga.meanScore !== undefined ? manga.meanScore.toFixed(1) : 'N/A'}</div> </div>
+                            <div class="stat-box"> <div class="stat-label">Mean Score</div> <div class="stat-value">${manga.meanScore !== undefined && manga.meanScore > 0 ? manga.meanScore.toFixed(1) : 'N/A'}</div> </div>
                         </div>
                         <h4 class="status-title">Status Distribution</h4>
                         <div class="status-grid">
                              ${Object.entries(manga.status || {}).map(([status, count]) => `
-                                <div class="status-box ${status.toLowerCase().replace(/\s+/g, '-').replace('plan-to-read', 'planning')}">
-                                    <div class="status-count">${count}</div> <div class="status-label">${status.replace(/([A-Z])/g, ' $1').trim()}</div>
+                                <div class="status-box ${status.toLowerCase().replace(/\s+/g, '-').replace('plan-to-read', 'planning').replace('_','-')}">
+                                    <div class="status-count">${count}</div> <div class="status-label">${status.replace(/([A-Z]|_)/g, ' $1').trim().replace(/\b\w/g, l => l.toUpperCase())}</div>
                                 </div>`).join('')}
                         </div>
                     </div>
@@ -456,16 +434,15 @@ function closeStatsModal() {
     if (statsContentContainer) statsContentContainer.innerHTML = ''; 
 }
 
-// Initial load of all logs from the server
 async function loadLogs() {
     const logContainer = document.getElementById('logContainer');
     if (!logContainer) return;
-    logContainer.innerHTML = '<div class="log-entry">Loading logs...</div>'; // Placeholder
+    logContainer.innerHTML = '<div class="log-entry">Loading logs...</div>'; 
 
     try {
         const response = await fetch('/logs');
-        const logsFromServer = await response.json(); // This is an array of log objects
-        logContainer.innerHTML = ''; // Clear placeholder or old logs
+        const logsFromServer = await response.json(); 
+        logContainer.innerHTML = ''; 
 
         if (logsFromServer.error) {
             logContainer.innerHTML = `<div class="log-entry log-error">Error loading logs: ${logsFromServer.error}</div>`;
@@ -479,9 +456,8 @@ async function loadLogs() {
         const logsToDisplay = logsFromServer.slice(-MAX_LOG_ENTRIES_DISPLAY);
 
         logsToDisplay.forEach(logEntryData => {
-            appendLogEntryToDisplay(logEntryData); // Use the same function as SSE to append
+            appendLogEntryToDisplay(logEntryData); 
         });
-        // No need to scroll here, appendLogEntryToDisplay handles it if it adds entries
         if (logsToDisplay.length > 0) {
             logContainer.scrollTop = logContainer.scrollHeight;
         } else {
@@ -494,8 +470,6 @@ async function loadLogs() {
     }
 }
 
-// Utility to add a log entry to the UI (client-side only, for immediate feedback on UI actions)
-// This is different from appendLogEntryToDisplay which is for logs from server (initial load or SSE)
 function addLogEntryToUI(message, isSuccess) {
     const logContainer = document.getElementById('logContainer');
     if (!logContainer) return;
@@ -513,14 +487,12 @@ function addLogEntryToUI(message, isSuccess) {
     logContainer.scrollTop = logContainer.scrollHeight;
 }
 
-// Notification system. useAlertOnError = true will use alert() for error messages.
 function showNotification(message, type = 'info', useAlertOnError = false) {
-    console.log(`NOTIFICATION (${type}): ${message}`); // Always log to console
+    console.log(`NOTIFICATION (${type}): ${message}`); 
     
     if (type === 'error' && useAlertOnError) {
         alert(`ERROR: ${message}`);
     }
-    // Add to UI log area for visibility, prefixing with type for clarity
     let logTypePrefix = '[NOTIF]';
     if (type === 'success') logTypePrefix = '[SUCCESS]';
     if (type === 'error') logTypePrefix = '[ERROR]';
