@@ -1,653 +1,530 @@
-/* Variables */
-:root {
-  --background-primary: #1a1a1a;
-  --background-secondary: #2a2a2a;
-  --background-tertiary: #333333;
-  
-  --status-watching: #3b82f6;  /* Tailwind blue-500 */
-  --status-reading: #3b82f6;   /* Same as watching for manga */
-  --status-completed: #22c55e; /* Tailwind green-500 */
-  --status-on-hold: #eab308;      /* Tailwind yellow-500 */
-  --status-dropped: #ef4444;   /* Tailwind red-500 */
-  --status-planning: #8b5cf6;  /* Tailwind purple-500 */
-  
-  --btn-blue: var(--status-watching);
-  --btn-green: var(--status-completed);
-  --btn-yellow: var(--status-on-hold);
-  --btn-red: var(--status-dropped);
-  --btn-purple: var(--status-planning);
+const MAX_LOG_ENTRIES_DISPLAY = 100;
+let sseEventSource = null; // Keep a reference to close it if needed
 
-  --text-primary: #ffffff;
-  --text-secondary: #9ca3af; /* gray-400 */
-}
-
-/* Global Styles */
-body {
-   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-   background-color: var(--background-primary);
-   color: var(--text-primary);
-   margin: 0;
-   padding: 15px;
-}
-
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--background-secondary);
-    border-radius: 5px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #4a4a4a;
-    border-radius: 5px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #5a5a5a;
-}
-
-.container {
-   width: 90%;
-   max-width: 1200px;
-   margin: 0 auto;
-   padding: 0 15px;
-}
-
-/* Headings */
-h2, h3, h4 {
-   margin-top: 0;
-   font-weight: 500;
-}
-
-h2 {
-   font-size: 1.5rem;
-   margin-bottom: 1.2rem;
-   color: var(--text-primary);
-}
-
-h3 {
-    font-size: 1.2rem;
-    margin-bottom: 1rem;
-    color: var(--text-primary);
-}
-
-h4 {
-   margin: 20px 0 15px;
-   font-size: 1.1rem;
-   color: var(--text-secondary);
-}
-
-/* Section Styling */
-.section {
-   background-color: var(--background-secondary);
-   border-radius: 8px;
-   padding: 30px;
-   margin-bottom: 25px;
-   color: var(--text-primary);
-}
-
-/* Input Styles */
-.input-group {
-   display: flex;
-   gap: 10px;
-   margin-bottom: 15px;
-   align-items: center; /* Vertically align items */
-}
-
-input[type="text"], input[type="number"] {
-   background-color: var(--background-tertiary);
-   border: 1px solid #404040; /* Subtle border */
-   padding: 8px 12px;
-   border-radius: 4px;
-   color: var(--text-primary);
-   font-size: 1rem;
-   height: 40px;
-   box-sizing: border-box;
-}
-input[type="text"]:focus, input[type="number"]:focus {
-    outline: none;
-    border-color: var(--btn-blue);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
-}
-
-
-input[type="text"] {
-   width: 200px;
-}
-
-input[type="number"] {
-   flex-grow: 0;
-   text-align: center;
-}
-
-/* Buttons */
-button {
-   padding: 12px 24px;
-   border: none;
-   border-radius: 4px;
-   cursor: pointer;
-   font-weight: 500;
-   font-size: 1rem;
-   min-width: 100px;
-   color: white;
-   transition: background-color 0.2s ease, transform 0.1s ease;
-}
-button:active {
-    transform: translateY(1px);
-}
-
-
-.btn-blue { background-color: var(--btn-blue); }
-.btn-green { background-color: var(--btn-green); }
-.btn-purple { background-color: var(--btn-purple); }
-.btn-yellow { background-color: var(--btn-yellow); }
-.btn-red { background-color: var(--btn-red); }
-
-.btn-blue:hover { background-color: #2563eb; }
-.btn-green:hover { background-color: #16a34a; }
-.btn-yellow:hover { background-color: #ca8a04; }
-.btn-red:hover { background-color: #dc2626; }
-.btn-purple:hover { background-color: #7c3aed; }
-
-/* Table Styles */
-.table {
-   width: 100%;
-   border-collapse: collapse;
-}
-
-.table th, .table td {
-   padding: 12px 10px; /* Increased padding */
-   border-bottom: 1px solid #404040;
-}
-
-.table th {
-   background-color: var(--background-tertiary);
-   text-align: left;
-   font-weight: 500;
-   color: var(--text-secondary);
-}
-
-.table tr:last-child td {
-    border-bottom: none;
-}
-.table tr:hover {
-    background-color: rgba(255,255,255,0.03);
-}
-
-
-/* Modal Styling */
-.modal {
-   display: none;
-   position: fixed;
-   z-index: 1000; /* Ensure modal is on top */
-   left: 0;
-   top: 0;
-   width: 100%;
-   height: 100%;
-   background-color: rgba(0, 0, 0, 0.8); /* Darker overlay */
-   overflow-y: auto; /* Allow modal itself to scroll if content is too tall */
-}
-
-.modal-content {
-    padding: 24px;
-    width: 90%; /* Responsive width */
-    max-width: 1000px;  /* Increased for better layout */
-    background-color: var(--background-secondary);
-    margin: 5vh auto; /* Centered with margin from top/bottom */
-    border-radius: 8px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-    position: relative; /* For close button positioning */
-}
-
-#statsContentContainer { /* Specific container for stats inside modal */
-    max-height: 80vh; /* Max height for the content area */
-    overflow-y: auto; /* Scroll for content area if it overflows */
-}
-
-
-.stats-container { /* Old class, might be unused now, ensure new classes are used */
-    display: flex;
-    gap: 24px;
-    justify-content: space-between;
-}
-
-.stats-section { /* Old class, might be unused now */
-    flex: 1;
-    padding: 20px;
-    border-radius: 8px;
-}
-
-
-/* Logs Section */
-.logs {
-   padding: 15px;
-   font-family: monospace;
-   font-size: 0.9rem;
-   max-height: 300px;
-   overflow-y: auto;
-   background-color: var(--background-primary); /* Slightly darker than section */
-   border: 1px solid var(--background-tertiary);
-   border-radius: 6px;
-   line-height: 1.5;
-}
-
-.log-entry {
-   margin: 5px 0;
-   padding: 3px 5px;
-   border-radius: 3px;
-}
-.log-entry span:first-child {
-    color: var(--text-secondary);
-    margin-right: 10px;
-}
-
-.log-success {
-   color: var(--status-completed);
-}
-.log-error { /* Added for error messages */
-    color: var(--status-dropped);
-}
-
-
-/* Close Button */
-.close {
-   color: #aaa;
-   position: absolute; /* Position relative to modal-content */
-   top: 10px;
-   right: 20px;
-   font-size: 28px;
-   font-weight: bold;
-   cursor: pointer;
-}
-
-.close:hover, .close:focus {
-   color: white;
-   text-decoration: none;
-}
-
-/* Loading Animation */
-.loading-container {
-    display: flex;
-    align-items: center;
-    justify-content: center; /* Center it */
-    gap: 10px;
-    color: var(--text-secondary);
-    padding: 20px;
-}
-
-.loading-bar {
-    width: 50px;
-    height: 3px;
-    background-color: rgba(255, 255, 255, 0.2);
-    border-radius: 2px;
-    overflow: hidden;
-}
-
-.loading-bar-progress {
-    width: 100%;
-    height: 100%;
-    background-color: white;
-    animation: loading 1s infinite linear;
-    transform-origin: 0% 50%;
-}
-
-@keyframes loading {
-    0% { transform: scaleX(0); }
-    50% { transform: scaleX(1); }
-    100% { transform: scaleX(0); transform-origin: 100% 50%; }
-}
-
-/* GitHub Footer */
-.github-footer {
-    position: fixed;
-    bottom: 0;
-    right: 0;
-    padding: 10px 15px;
-    background-color: var(--background-primary); /* Match body for consistency */
-    border-top-left-radius: 6px;
-    font-size: 0.9rem;
-    z-index: 100; /* Above other content but below modal */
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
-}
-
-.github-footer a {
-    color: #58a6ff; /* Default link color */
-    text-decoration: none;
-}
-.github-footer a:hover {
-    color: #79b8ff !important; /* Hover color from HTML */
-    text-decoration: underline;
-}
-
-/* Detailed Stats Styling (for Modal and Main Page Overview) */
-.detailed-stats-container {
-    display: flex;
-    gap: 24px; /* Was 32px, adjusted for potentially smaller main page area */
-    padding: 10px 0; /* Reduced padding for main page */
-}
-
-.detailed-stats-section {
-    flex: 1;
-    background-color: var(--background-tertiary);
-    border-radius: 12px;
-    padding: 20px; /* Was 24px */
-}
-
-.detailed-stats-section h3 {
-    font-size: 1.3rem; /* Was 1.4rem */
-    margin: 0 0 20px 0; /* Was 24px */
-    text-align: center;
-    color: var(--text-primary);
-    font-weight: 600;
-}
-
-.main-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* Responsive columns */
-    gap: 16px; /* Was 20px */
-    margin-bottom: 24px; /* Was 32px */
-}
-
-.stat-box {
-    background-color: var(--background-secondary);
-    padding: 12px; /* Was 16px */
-    border-radius: 10px;
-    text-align: center;
-}
-
-.stat-icon { /* Not currently used in JS, but can be added */
-    font-size: 1.5rem;
-    margin-bottom: 8px;
-}
-
-.stat-label {
-    color: var(--text-secondary);
-    font-size: 0.85rem; /* Was 0.9rem */
-    margin-bottom: 6px; /* Was 8px */
-}
-
-.stat-value {
-    font-size: 1.4rem; /* Was 1.5rem */
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.status-title { /* For modal */
-    font-size: 1.1rem;
-    color: var(--text-secondary);
-    margin-bottom: 16px;
-    text-align: center;
-}
-
-.status-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); /* Responsive status boxes */
-    gap: 10px; /* Was 12px */
-}
-
-.status-box {
-    padding: 10px 6px; /* Was 12px 8px */
-    border-radius: 8px;
-    text-align: center;
-    transition: transform 0.2s, opacity 0.2s;
-    color: var(--text-primary); /* Ensure text inside is white */
-}
-/* Apply status colors directly if not done by specific classes */
-.status-box.watching, .status-box.reading { background-color: var(--status-watching); }
-.status-box.completed { background-color: var(--status-completed); }
-.status-box.on-hold { background-color: var(--status-on-hold); }
-.status-box.dropped { background-color: var(--status-dropped); }
-.status-box.planning { background-color: var(--status-planning); }
-
-
-.status-box:hover {
-    transform: translateY(-2px);
-    opacity: 0.9;
-}
-
-.status-count {
-    font-size: 1.2rem; /* Was 1.3rem */
-    font-weight: 700;
-    margin-bottom: 4px;
-    color: inherit; /* Inherit from .status-box for white text */
-}
-
-.status-label {
-    font-size: 0.75rem; /* Was 0.8rem */
-    color: rgba(255, 255, 255, 0.85); /* Slightly more opaque */
-}
-
-.stats-divider { /* For modal between anime/manga sections */
-    width: 1px;
-    background-color: var(--background-secondary); /* Match other separators */
-    margin: 0 16px; /* Provide spacing */
-}
-
-
-/* Mobile Styles */
-@media (max-width: 768px) {
-    body {
-        padding: 8px;
+document.addEventListener('DOMContentLoaded', () => {
+    loadBackups();
+    loadLogs(); // Initial load of all logs
+    checkAutoBackupStatus();
+    setupSSE();
+    
+    if (window.initialLatestStats) {
+        displayLatestStats(window.initialLatestStats);
+    } else {
+        fetchLatestStats(); 
     }
 
-    .container {
-        width: 100%;
-        padding: 0 8px;
+    const modal = document.getElementById('statsModal');
+    const span = document.getElementsByClassName('close')[0];
+    if (span) {
+      span.onclick = closeStatsModal;
     }
+    window.onclick = function(event) {
+        if (event.target === modal) {
+            closeStatsModal();
+        }
+    };
+});
 
-    .section {
-        padding: 20px 16px; /* Adjusted padding */
-        margin-bottom: 20px;
+function setupSSE() {
+    if (sseEventSource) {
+        sseEventSource.close(); // Close existing connection if any
+    }
+    sseEventSource = new EventSource("/events");
+
+    sseEventSource.onopen = function() {
+        // console.log("SSE Connection Opened.");
+        // No need to add log here, server side will log if necessary
+    };
+
+    sseEventSource.onmessage = function(event) {
+        if (!event.data || event.data === '{}') { 
+            return;
+        }
+        
+        try {
+            const parsedData = JSON.parse(event.data);
+            // console.log("SSE Received:", parsedData);
+
+            if (parsedData.type === 'backup_created') {
+                showNotification(`Backup created for ${parsedData.data.username}`, 'success');
+                loadBackups(); // Refresh backup list
+                // Log for this event is already added by save_log in backend, no need to call loadLogs()
+                if (parsedData.data.stats) {
+                    const fullStatsData = {
+                        anime: parsedData.data.stats.anime,
+                        manga: parsedData.data.stats.manga,
+                        username: parsedData.data.username,
+                        last_updated: parsedData.data.timestamp
+                    };
+                    displayLatestStats(fullStatsData);
+                }
+            } else if (parsedData.type === 'backup_deleted') {
+                showNotification(`Backup ${parsedData.data.id} deleted.`, 'success');
+                loadBackups(); 
+                fetchLatestStats(); 
+            } else if (parsedData.type === 'latest_stats_updated') {
+                displayLatestStats(parsedData.data); 
+            } else if (parsedData.type === 'log_updated') {
+                // A new log entry was sent from the server
+                if (parsedData.data) {
+                    appendLogEntryToDisplay(parsedData.data); // Append only the new log
+                }
+            }
+        } catch (e) {
+            console.error("Error parsing SSE data:", e, "Data:", event.data);
+        }
+    };
+
+    sseEventSource.addEventListener('keep-alive', function(event) {
+        // console.log("SSE Keep-alive event received");
+    });
+
+    sseEventSource.onerror = function(err) {
+        console.error("EventSource failed:", err);
+        addLogEntryToUI("[SYSTEM] SSE connection error. Real-time updates stopped.", false); // Add to UI log directly
+        if (sseEventSource) {
+            sseEventSource.close();
+        }
+        // Optionally, try to reconnect after a delay, but be careful about infinite loops
+        // setTimeout(setupSSE, 10000); // Reconnect after 10 seconds
+    };
+}
+
+// Appends a single new log entry from SSE to the display
+function appendLogEntryToDisplay(logEntryData) {
+    const logContainer = document.getElementById('logContainer');
+    if (!logContainer || !logEntryData) return;
+
+    const date = new Date(logEntryData.timestamp).toLocaleString();
+    const logClass = logEntryData.is_success ? 'log-success' : 'log-error';
+    const entry = document.createElement('div');
+    entry.classList.add('log-entry', logClass);
+    entry.innerHTML = `<span>${date}</span> - <span>${logEntryData.message}</span>`;
+    
+    logContainer.appendChild(entry);
+
+    // Remove oldest log if > MAX_LOG_ENTRIES_DISPLAY
+    while (logContainer.children.length > MAX_LOG_ENTRIES_DISPLAY) {
+        logContainer.removeChild(logContainer.firstChild);
+    }
+    logContainer.scrollTop = logContainer.scrollHeight; // Scroll to bottom
+}
+
+
+async function fetchLatestStats() {
+    try {
+        const response = await fetch('/latest-stats');
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const stats = await response.json();
+        displayLatestStats(stats); // stats can be {} if none
+    } catch (error) {
+        console.error("Failed to fetch latest stats:", error);
+        const statsOverviewDiv = document.getElementById('latestStatsOverview');
+        if (statsOverviewDiv) statsOverviewDiv.innerHTML = '<p>Could not load latest backup stats.</p>';
+    }
+}
+
+function displayLatestStats(statsData) {
+    const statsOverviewDiv = document.getElementById('latestStatsOverview');
+    if (!statsOverviewDiv) return;
+
+    if (!statsData || !statsData.anime || !statsData.manga || !statsData.username) { // Check for username too
+        statsOverviewDiv.innerHTML = '<p>No backup data available yet. Create a backup to see stats.</p>';
+        return;
+    }
+    // ... (rest of the displayLatestStats function remains the same as your previous version)
+    const { anime, manga, username, last_updated } = statsData;
+    let lastUpdatedDate = 'N/A';
+    if (last_updated) {
+        try {
+            lastUpdatedDate = new Date(last_updated).toLocaleString();
+        } catch (e) { /* ignore date parsing error */ }
     }
     
-    /* Layout for Manual & Auto Backup & Latest Stats Overview */
-    .section > div[style*="flex-wrap: wrap"] { /* Target the flex container for auto backup and latest stats */
-        flex-direction: column !important;
-        gap: 24px;
-    }
-     .section > div[style*="display: flex"] { /* General flex containers */
-        flex-direction: column;
-        gap: 15px;
-    }
+    statsOverviewDiv.innerHTML = `
+        <div class="detailed-stats-container" style="padding: 0; gap: 10px;">
+            <div class="detailed-stats-section" style="padding: 15px;">
+                <h3 style="font-size: 1.2rem; margin-bottom: 15px;">Anime Stats (${username || 'N/A'})</h3>
+                <div class="main-stats" style="grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                    <div class="stat-box" style="padding: 10px;"> <div class="stat-label">Total</div> <div class="stat-value">${anime.totalEntries !== undefined ? anime.totalEntries : 'N/A'}</div> </div>
+                    <div class="stat-box" style="padding: 10px;"> <div class="stat-label">Episodes</div> <div class="stat-value">${anime.episodesWatched !== undefined ? anime.episodesWatched : 'N/A'}</div> </div>
+                    <div class="stat-box" style="padding: 10px;"> <div class="stat-label">Mean Score</div> <div class="stat-value">${anime.meanScore !== undefined ? anime.meanScore.toFixed(1) : 'N/A'}</div> </div>
+                </div>
+                <div class="status-grid" style="gap: 6px;">
+                    ${Object.entries(anime.status || {}).map(([status, count]) => `
+                        <div class="status-box ${status.toLowerCase().replace(/\s+/g, '-').replace('plan-to-watch', 'planning')}" style="padding: 6px;">
+                            <div class="status-count">${count}</div> <div class="status-label" style="font-size: 0.7rem;">${status.replace(/([A-Z])/g, ' $1').trim()}</div>
+                        </div>`).join('')}
+                </div>
+            </div>
+            <div class="detailed-stats-section" style="padding: 15px;">
+                <h3 style="font-size: 1.2rem; margin-bottom: 15px;">Manga Stats (${username || 'N/A'})</h3>
+                <div class="main-stats" style="grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                    <div class="stat-box" style="padding: 10px;"> <div class="stat-label">Total</div> <div class="stat-value">${manga.totalEntries !== undefined ? manga.totalEntries : 'N/A'}</div> </div>
+                    <div class="stat-box" style="padding: 10px;"> <div class="stat-label">Chapters</div> <div class="stat-value">${manga.chaptersRead !== undefined ? manga.chaptersRead : 'N/A'}</div> </div>
+                    <div class="stat-box" style="padding: 10px;"> <div class="stat-label">Volumes</div> <div class="stat-value">${manga.volumesRead !== undefined ? manga.volumesRead : 'N/A'}</div> </div>
+                    <div class="stat-box" style="padding: 10px;"> <div class="stat-label">Mean Score</div> <div class="stat-value">${manga.meanScore !== undefined ? manga.meanScore.toFixed(1) : 'N/A'}</div> </div>
+                </div>
+                 <div class="status-grid" style="gap: 6px;">
+                    ${Object.entries(manga.status || {}).map(([status, count]) => `
+                        <div class="status-box ${status.toLowerCase().replace(/\s+/g, '-').replace('plan-to-read', 'planning')}" style="padding: 6px;">
+                            <div class="status-count">${count}</div> <div class="status-label" style="font-size: 0.7rem;">${status.replace(/([A-Z])/g, ' $1').trim()}</div>
+                        </div>`).join('')}
+                </div>
+            </div>
+        </div>
+        <p style="font-size: 0.8rem; color: #ccc; text-align: center; margin-top: 10px;">Last updated: ${lastUpdatedDate}</p>`;
+}
 
 
-    h1, h2 {
-        text-align: center;
-    }
-    h2 {
-        font-size: 1.3rem;
-        margin-bottom: 16px;
-    }
-
-    .input-group {
-        flex-direction: column;
-        gap: 12px;
-        margin-bottom: 16px;
-    }
-     .input-group > div[style*="flex-direction: column"] { /* Inner flex for keep last/every */
-        width: 100%;
-    }
-    .input-group > div[style*="flex-direction: column"] > div { /* Each line (Keep last X backups) */
-        display: flex;
-        justify-content: space-between; /* Space out elements */
-        width: 100%;
+async function manualBackup() {
+    const usernameInput = document.getElementById('manualUsername');
+    const username = usernameInput.value.trim(); // Trim whitespace
+    if (!username) {
+        showNotification('Manual Backup: Please enter a username.', 'error', true); // Use alert for errors
+        usernameInput.focus();
+        return;
     }
 
+    // Give immediate feedback that something is happening
+    showNotification(`Manual Backup: Starting backup for ${username}... This may take a moment.`, 'info');
+    // Disable button to prevent multiple clicks
+    const backupButton = usernameInput.nextElementSibling; // Assuming button is next sibling
+    if(backupButton) backupButton.disabled = true;
 
-    input[type="text"], 
-    input[type="number"] {
-        width: 100% !important; /* Force full width */
-        height: 44px;
-        margin: 0;
-    }
-
-
-    button {
-        width: 100%;
-        height: 44px;
-        padding: 0 16px;
-        font-size: 1rem;
-    }
-
-    /* Previous Backups Table Styling for Mobile */
-    .table {
-        display: block; /* Make table behave like a block for overflow */
-        overflow-x: auto; /* Allow horizontal scroll if content too wide */
-    }
-
-    .table thead {
-        display: none; /* Hide table headers */
-    }
-
-    .table tbody, .table tr, .table td {
-        display: block; /* Stack table elements */
-        width: 100% !important; /* Force full width */
-        box-sizing: border-box;
-    }
-
-    .table tr {
-        background-color: var(--background-tertiary);
-        border-radius: 8px;
-        margin-bottom: 12px;
-        padding: 12px; /* Padding inside each "card" */
-        border: 1px solid #404040;
-    }
-    .table tr:last-child {
-        margin-bottom: 0;
-    }
-
-
-    .table td {
-        padding: 8px 0; /* Adjust padding */
-        border-bottom: 1px solid var(--background-secondary); /* Separator inside card */
-        text-align: right; /* Align value to the right */
-        position: relative; /* For pseudo-element */
-    }
-    .table td:last-child {
-        border-bottom: none;
-    }
-
-    .table td:before {
-        content: attr(data-label);
-        font-weight: 500;
-        color: var(--text-secondary);
-        position: absolute;
-        left: 0;
-        text-align: left;
-        white-space: nowrap;
-    }
-    
-    .table td.actions { /* Special handling for actions cell */
-       padding-top: 10px;
-    }
-    .actions { /* Container for action buttons in table */
-        display: flex;
-        flex-direction: column; /* Stack buttons vertically on mobile */
-        gap: 8px;
-        margin-top: 8px;
-         /* border-top: 1px solid var(--background-secondary); /* Separator above actions */
-    }
-
-    .actions button {
-        width: 100%; /* Full width buttons */
-        font-size: 0.9rem;
-        padding: 10px 8px; /* Adjust padding */
-        height: auto; /* Auto height */
-        min-width: 0;
-    }
-
-
-    /* Logs Area */
-    .logs {
-        padding: 12px;
-        font-size: 0.85rem;
-        line-height: 1.4;
-    }
-
-    /* Modal Adjustments for Mobile */
-    .modal-content {
-        padding: 16px;
-        margin: 5vh auto; /* Less margin */
-        width: 95%; /* More width on mobile */
-    }
-    #statsContentContainer {
-         max-height: 85vh; /* Allow more height on mobile */
-    }
-
-
-    /* Detailed Stats in Modal and on Main Page for Mobile */
-    .detailed-stats-container {
-        flex-direction: column;
-        gap: 16px; /* Reduced gap */
-        padding: 0;
-    }
-
-    .detailed-stats-section {
-        padding: 16px; /* Reduced padding */
-    }
-    .detailed-stats-section h3 {
-        font-size: 1.1rem;
-        margin-bottom: 12px;
-    }
-
-    .main-stats {
-        grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); /* Smaller minmax */
-        gap: 10px;
-        margin-bottom: 16px;
-    }
-    .stat-box {
-        padding: 10px;
-    }
-    .stat-label { font-size: 0.75rem; margin-bottom: 4px; }
-    .stat-value { font-size: 1.2rem; }
-
-
-    .status-grid {
-        grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)) !important; /* Ensure it applies */
-        gap: 6px !important; /* Ensure it applies */
-    }
-    .status-box {
-        padding: 8px 4px;
-    }
-    .status-count { font-size: 1rem; }
-    .status-label { font-size: 0.65rem; }
-
-    .stats-divider { /* Hide divider on mobile as sections stack */
-        display: none;
-    }
-
-    .github-footer {
-        padding: 8px 10px;
-        font-size: 0.8rem;
-        text-align: center; /* Center on mobile */
-        width: 100%;
-        box-sizing: border-box;
-        border-top-left-radius: 0; /* Full width */
-        background-color: var(--background-secondary); /* Blend more */
+    try {
+        const response = await fetch('/backup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username })
+        });
+        const result = await response.json(); // Try to parse JSON regardless of response.ok
+        
+        if (response.ok && result.status === 'success') {
+            // Backend's save_log and SSE will handle the success log and UI updates (backup list, latest stats).
+            // We can show a success notification here for clarity.
+            showNotification(result.message || `Manual backup for ${username} completed successfully.`, 'success');
+        } else {
+            // Error message from server (result.error) or a generic HTTP error
+            const errorMessage = result.error || `Backup request failed with status: ${response.status}`;
+            throw new Error(errorMessage);
+        }
+    } catch (error) {
+        // Log the detailed error to console for debugging
+        console.error('Manual Backup Error:', error);
+        // Show user-friendly error message using alert for high visibility
+        showNotification(`Manual Backup Failed: ${error.message}`, 'error', true); 
+        // Also add to UI log
+        addLogEntryToUI(`[ERROR] Manual backup for ${username} failed: ${error.message}`, false);
+    } finally {
+        // Re-enable button
+        if(backupButton) backupButton.disabled = false;
     }
 }
 
-/* iPhone specific fine-tuning (if needed, often covered by max-width: 768px) */
-@media (max-width: 430px) {
-    .section {
-        padding: 15px 10px;
-    }
-    h1 { font-size: 1.3rem !important; }
-    h2 { font-size: 1.2rem; margin-bottom: 12px; }
+async function toggleAutoBackup() {
+    const button = document.getElementById('autoBackupButton');
+    const usernameInput = document.getElementById('autoUsername');
+    const username = usernameInput.value.trim();
+    const keepLast = document.getElementById('keepLastBackups').value;
+    const interval = document.getElementById('backupInterval').value; 
 
-    input[type="text"], input[type="number"], button {
-        height: 40px;
-        font-size: 0.95rem;
+    const action = button.textContent === 'Start' ? 'start' : 'stop';
+    showNotification(`Auto Backup: Attempting to ${action} for ${username || 'N/A'}...`, 'info');
+    button.disabled = true; // Disable button during operation
+
+    try {
+        let response;
+        let payload = {};
+
+        if (action === 'start') {
+            if (!username || !keepLast || !interval) {
+                throw new Error('Please fill in all auto backup fields (username, keep last, interval).');
+            }
+            if (parseInt(keepLast) <=0 || parseFloat(interval) <=0) {
+                throw new Error('Keep last and interval must be positive numbers.');
+            }
+            payload = { username, keepLast, interval };
+            response = await fetch('/auto-backup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } else { // action === 'stop'
+            response = await fetch('/stop-auto-backup', { method: 'POST' });
+        }
+
+        const result = await response.json();
+        if (response.ok && result.status === 'success') {
+            showNotification(result.message || `Auto backup ${action}ed successfully.`, 'success');
+            // Backend's save_log and SSE handle further logging/UI updates.
+        } else {
+            throw new Error(result.error || `Failed to ${action} auto backup.`);
+        }
+    } catch (error) {
+        console.error(`Auto Backup ${action} Error:`, error);
+        showNotification(`Auto Backup Failed: ${error.message}`, 'error', true);
+        addLogEntryToUI(`[ERROR] Auto backup ${action} failed: ${error.message}`, false);
+    } finally {
+        await checkAutoBackupStatus(); // Refresh button state and fields, re-enables button
     }
+}
+
+async function checkAutoBackupStatus() {
+    const button = document.getElementById('autoBackupButton');
+    const usernameInput = document.getElementById('autoUsername');
+    const keepLastInput = document.getElementById('keepLastBackups');
+    const intervalInput = document.getElementById('backupInterval');
     
-    .table td:before {
-        font-size: 0.9rem; /* Slightly smaller label on very small screens */
+    button.disabled = true; // Disable while checking
+
+    try {
+        const response = await fetch('/auto-backup-status');
+        const result = await response.json();
+
+        if (result.running && result.config) {
+            button.textContent = 'Stop';
+            button.classList.remove('btn-green');
+            button.classList.add('btn-red');
+            usernameInput.value = result.config.username || '';
+            keepLastInput.value = result.config.keepLast || '5';
+            intervalInput.value = result.config.interval || '24';
+            usernameInput.disabled = true;
+            keepLastInput.disabled = true;
+            intervalInput.disabled = true;
+        } else {
+            button.textContent = 'Start';
+            button.classList.remove('btn-red');
+            button.classList.add('btn-green');
+            if (result.config) { 
+                 usernameInput.value = result.config.username || '';
+                 keepLastInput.value = result.config.keepLast || '5';
+                 intervalInput.value = result.config.interval || '24';
+            } else { // No config, reset to defaults if desired or leave as is
+                // usernameInput.value = '';
+                // keepLastInput.value = '5';
+                // intervalInput.value = '24';
+            }
+            usernameInput.disabled = false;
+            keepLastInput.disabled = false;
+            intervalInput.disabled = false;
+        }
+    } catch (error) {
+        console.error('Failed to get auto backup status:', error);
+        addLogEntryToUI('[SYSTEM] Failed to get auto backup status.', false);
+    } finally {
+        button.disabled = false; // Re-enable button
     }
-    .actions button {
-        font-size: 0.85rem;
+}
+
+async function loadBackups() {
+    try {
+        const response = await fetch('/backups');
+        const backups = await response.json();
+        const backupsTableBody = document.getElementById('backupsTableBody');
+        backupsTableBody.innerHTML = ''; 
+
+        if (backups.error) {
+            showNotification(`Error loading backups: ${backups.error}`, 'error', true);
+            addLogEntryToUI(`[ERROR] Loading backups: ${backups.error}`, false);
+            return;
+        }
+        if (!Array.isArray(backups) || backups.length === 0) {
+            backupsTableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No backups found.</td></tr>';
+            return;
+        }
+
+        backups.forEach(backup => {
+            const row = backupsTableBody.insertRow();
+            const date = backup.date ? new Date(backup.date).toLocaleString() : 'N/A';
+            row.insertCell().textContent = date;
+            row.insertCell().textContent = backup.username || 'N/A';
+            row.insertCell().textContent = backup.content || 'N/A';
+            
+            const actionsCell = row.insertCell();
+            actionsCell.classList.add('actions'); 
+            actionsCell.innerHTML = `
+                <button class="btn-blue" onclick="openStatsModal('${backup.id}', '${backup.username || ''}')">Stats</button>
+                <button class="btn-green" onclick="window.location.href='/backup/${backup.id}/download'">Download</button>
+                <button class="btn-red" onclick="deleteBackup('${backup.id}')">Delete</button>
+            `;
+            row.cells[0].setAttribute('data-label', 'Date');
+            row.cells[1].setAttribute('data-label', 'Username');
+            row.cells[2].setAttribute('data-label', 'Content');
+            row.cells[3].setAttribute('data-label', 'Actions');
+        });
+    } catch (error) {
+        console.error('Load backups error:', error);
+        showNotification('Failed to load backups.', 'error', true);
+        addLogEntryToUI('[ERROR] Failed to load backups.', false);
     }
+}
+
+async function deleteBackup(backupId) {
+    if (!confirm(`Are you sure you want to delete backup ${backupId}? This cannot be undone.`)) {
+        return;
+    }
+    showNotification(`Deleting backup ${backupId}...`, 'info');
+    try {
+        const response = await fetch(`/backup/${backupId}`, { method: 'DELETE' });
+        const result = await response.json();
+        if (response.ok && result.status === 'success') {
+            // SSE will handle UI updates (log, backup list refresh, latest stats check).
+            showNotification(`Backup ${backupId} deleted successfully.`, 'success');
+        } else {
+            throw new Error(result.error || 'Failed to delete backup.');
+        }
+    } catch (error) {
+        console.error(`Delete Backup ${backupId} Error:`, error);
+        showNotification(`Failed to delete backup ${backupId}: ${error.message}`, 'error', true);
+        addLogEntryToUI(`[ERROR] Failed to delete backup ${backupId}: ${error.message}`, false);
+    }
+}
+
+async function openStatsModal(backupId, username) {
+    const modal = document.getElementById('statsModal');
+    const statsContentContainer = document.getElementById('statsContentContainer');
+    const modalUsernameSpan = document.getElementById('statsModalUsername');
+
+    statsContentContainer.innerHTML = '<div class="loading-container"><div class="loading-bar"><div class="loading-bar-progress"></div></div> Fetching stats...</div>';
+    modal.style.display = 'block';
+    modalUsernameSpan.textContent = username || 'N/A';
+
+    try {
+        const response = await fetch(`/backup/${backupId}/stats`);
+        const stats = await response.json();
+
+        if (response.ok) {
+            if (stats.error) {
+                 statsContentContainer.innerHTML = `<p style="color: var(--status-dropped);">Error loading stats: ${stats.error}</p>`;
+                 return;
+            }
+            if (!stats.anime || !stats.manga) {
+                statsContentContainer.innerHTML = `<p>Statistics data is incomplete for this backup.</p>`;
+                return;
+            }
+            const { anime, manga } = stats;
+            // ... (rest of the openStatsModal innerHTML remains the same as your previous version)
+            statsContentContainer.innerHTML = `
+                <div class="detailed-stats-container">
+                    <div class="detailed-stats-section">
+                        <h3>Anime Statistics</h3>
+                        <div class="main-stats">
+                            <div class="stat-box"> <div class="stat-label">Total Entries</div> <div class="stat-value">${anime.totalEntries !== undefined ? anime.totalEntries : 'N/A'}</div> </div>
+                            <div class="stat-box"> <div class="stat-label">Episodes Watched</div> <div class="stat-value">${anime.episodesWatched !== undefined ? anime.episodesWatched : 'N/A'}</div> </div>
+                            <div class="stat-box"> <div class="stat-label">Mean Score</div> <div class="stat-value">${anime.meanScore !== undefined ? anime.meanScore.toFixed(1) : 'N/A'}</div> </div>
+                        </div>
+                        <h4 class="status-title">Status Distribution</h4>
+                        <div class="status-grid">
+                            ${Object.entries(anime.status || {}).map(([status, count]) => `
+                                <div class="status-box ${status.toLowerCase().replace(/\s+/g, '-').replace('plan-to-watch', 'planning')}">
+                                    <div class="status-count">${count}</div> <div class="status-label">${status.replace(/([A-Z])/g, ' $1').trim()}</div>
+                                </div>`).join('')}
+                        </div>
+                    </div>
+                    <div class="stats-divider"></div>
+                    <div class="detailed-stats-section">
+                        <h3>Manga Statistics</h3>
+                        <div class="main-stats">
+                            <div class="stat-box"> <div class="stat-label">Total Entries</div> <div class="stat-value">${manga.totalEntries !== undefined ? manga.totalEntries : 'N/A'}</div> </div>
+                            <div class="stat-box"> <div class="stat-label">Chapters Read</div> <div class="stat-value">${manga.chaptersRead !== undefined ? manga.chaptersRead : 'N/A'}</div> </div>
+                            <div class="stat-box"> <div class="stat-label">Volumes Read</div> <div class="stat-value">${manga.volumesRead !== undefined ? manga.volumesRead : 'N/A'}</div> </div>
+                            <div class="stat-box"> <div class="stat-label">Mean Score</div> <div class="stat-value">${manga.meanScore !== undefined ? manga.meanScore.toFixed(1) : 'N/A'}</div> </div>
+                        </div>
+                        <h4 class="status-title">Status Distribution</h4>
+                        <div class="status-grid">
+                             ${Object.entries(manga.status || {}).map(([status, count]) => `
+                                <div class="status-box ${status.toLowerCase().replace(/\s+/g, '-').replace('plan-to-read', 'planning')}">
+                                    <div class="status-count">${count}</div> <div class="status-label">${status.replace(/([A-Z])/g, ' $1').trim()}</div>
+                                </div>`).join('')}
+                        </div>
+                    </div>
+                </div>`;
+        } else {
+            statsContentContainer.innerHTML = `<p style="color: var(--status-dropped);">Could not load statistics: ${stats.error || 'Server error'}</p>`;
+        }
+    } catch (error) {
+        console.error('Error fetching stats for modal:', error);
+        statsContentContainer.innerHTML = `<p style="color: var(--status-dropped);">Could not load statistics. Error: ${error.message}</p>`;
+    }
+}
+
+function closeStatsModal() {
+    const modal = document.getElementById('statsModal');
+    if (modal) modal.style.display = 'none';
+    const statsContentContainer = document.getElementById('statsContentContainer');
+    if (statsContentContainer) statsContentContainer.innerHTML = ''; 
+}
+
+// Initial load of all logs from the server
+async function loadLogs() {
+    const logContainer = document.getElementById('logContainer');
+    if (!logContainer) return;
+    logContainer.innerHTML = '<div class="log-entry">Loading logs...</div>'; // Placeholder
+
+    try {
+        const response = await fetch('/logs');
+        const logsFromServer = await response.json(); // This is an array of log objects
+        logContainer.innerHTML = ''; // Clear placeholder or old logs
+
+        if (logsFromServer.error) {
+            logContainer.innerHTML = `<div class="log-entry log-error">Error loading logs: ${logsFromServer.error}</div>`;
+            return;
+        }
+        if (!Array.isArray(logsFromServer)) {
+             logContainer.innerHTML = `<div class="log-entry log-error">Received invalid log data from server.</div>`;
+             return;
+        }
+        
+        const logsToDisplay = logsFromServer.slice(-MAX_LOG_ENTRIES_DISPLAY);
+
+        logsToDisplay.forEach(logEntryData => {
+            appendLogEntryToDisplay(logEntryData); // Use the same function as SSE to append
+        });
+        // No need to scroll here, appendLogEntryToDisplay handles it if it adds entries
+        if (logsToDisplay.length > 0) {
+            logContainer.scrollTop = logContainer.scrollHeight;
+        } else {
+            logContainer.innerHTML = '<div class="log-entry">No log entries found.</div>';
+        }
+
+    } catch (error) {
+        console.error('Failed to load logs:', error);
+        if(logContainer) logContainer.innerHTML = '<div class="log-entry log-error">Failed to load logs. Check console for details.</div>';
+    }
+}
+
+// Utility to add a log entry to the UI (client-side only, for immediate feedback on UI actions)
+// This is different from appendLogEntryToDisplay which is for logs from server (initial load or SSE)
+function addLogEntryToUI(message, isSuccess) {
+    const logContainer = document.getElementById('logContainer');
+    if (!logContainer) return;
+
+    const date = new Date().toLocaleString();
+    const logClass = isSuccess ? 'log-success' : 'log-error';
+    const entry = document.createElement('div');
+    entry.classList.add('log-entry', logClass);
+    entry.innerHTML = `<span>${date}</span> - <span>${message}</span>`;
+    
+    while (logContainer.children.length >= MAX_LOG_ENTRIES_DISPLAY) {
+        logContainer.removeChild(logContainer.firstChild);
+    }
+    logContainer.appendChild(entry);
+    logContainer.scrollTop = logContainer.scrollHeight;
+}
+
+// Notification system. useAlertOnError = true will use alert() for error messages.
+function showNotification(message, type = 'info', useAlertOnError = false) {
+    console.log(`NOTIFICATION (${type}): ${message}`); // Always log to console
+    
+    if (type === 'error' && useAlertOnError) {
+        alert(`ERROR: ${message}`);
+    }
+    // Add to UI log area for visibility, prefixing with type for clarity
+    let logTypePrefix = '[NOTIF]';
+    if (type === 'success') logTypePrefix = '[SUCCESS]';
+    if (type === 'error') logTypePrefix = '[ERROR]';
+    if (type === 'info') logTypePrefix = '[INFO]';
+
+    addLogEntryToUI(`${logTypePrefix} ${message}`, type === 'success' || type === 'info');
 }
