@@ -1,145 +1,173 @@
 /* Variables */
 :root {
-  --background-primary: #1a1a1a;
-  --background-secondary: #2a2a2a;
-  --background-tertiary: #333333;
+  --background-primary: #121212; /* Etwas dunkleres Primär-Schwarz/Grau */
+  --background-secondary: #1e1e1e; /* Leicht helleres Sekundär für Karten/Sektionen */
+  --background-tertiary: #282828; /* Für Input-Felder, Tabellen-Header */
   
-  --status-watching: #3b82f6;  /* Tailwind blue-500 */
-  --status-reading: #3b82f6;   /* Same as watching for manga */
-  --status-completed: #22c55e; /* Tailwind green-500 */
-  --status-on-hold: #eab308;      /* Tailwind yellow-500 */
-  --status-dropped: #ef4444;   /* Tailwind red-500 */
-  --status-planning: #8b5cf6;  /* Tailwind purple-500 */
+  --text-primary: #e0e0e0; /* Leicht gedämpftes Weiß für besseren Kontrast auf dunklem Grund */
+  --text-secondary: #b0b0b0; /* Für Labels und sekundären Text */
+  --text-placeholder: #757575;
+
+  --border-color: #353535; /* Subtile Trennlinien */
+  --border-radius-small: 4px;
+  --border-radius-medium: 8px;
+  --border-radius-large: 12px;
+
+  --shadow-soft: 0 2px 4px rgba(0,0,0,0.2);
+  --shadow-medium: 0 4px 8px rgba(0,0,0,0.3);
+
+  --status-watching: #3b82f6;
+  --status-reading: #3b82f6;
+  --status-completed: #22c55e;
+  --status-on-hold: #eab308;
+  --status-dropped: #ef4444;
+  --status-planning: #8b5cf6;
   
   --btn-blue: var(--status-watching);
   --btn-green: var(--status-completed);
-  --btn-yellow: var(--status-on-hold);
+  --btn-yellow: var(--status-on-hold); /* War --btn-yellow: var(--status-hold); */
   --btn-red: var(--status-dropped);
   --btn-purple: var(--status-planning);
-
-  --text-primary: #ffffff;
-  --text-secondary: #9ca3af; /* gray-400 */
 }
 
 /* Global Styles */
 body {
-   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif; /* Modernere Font-Stack */
    background-color: var(--background-primary);
    color: var(--text-primary);
    margin: 0;
-   padding: 15px;
+   padding: 20px; /* Mehr Padding am Body */
+   line-height: 1.6; /* Bessere Lesbarkeit */
 }
 
 /* Custom Scrollbar */
-::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--background-secondary);
-    border-radius: 5px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #4a4a4a;
-    border-radius: 5px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #5a5a5a;
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--background-tertiary); border-radius: var(--border-radius-small); }
+::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: var(--border-radius-small); }
+::-webkit-scrollbar-thumb:hover { background: #5a5a5a; }
 
 .container {
-   width: 90%;
-   max-width: 1200px;
+   width: 100%; /* Volle Breite nutzen */
+   max-width: 1280px; /* Maximale Breite für große Bildschirme */
    margin: 0 auto;
-   padding: 0 15px;
+   padding: 0 15px; /* Links/Rechts Padding im Container */
 }
 
 /* Headings */
-h2, h3, h4 {
+h1, h2, h3, h4 {
    margin-top: 0;
-   font-weight: 500;
-}
-
-h2 {
-   font-size: 1.5rem;
-   margin-bottom: 1.2rem;
+   font-weight: 600; /* Etwas fetter für bessere Hierarchie */
    color: var(--text-primary);
 }
+h1 { font-size: 2rem; margin-bottom: 1.5rem; } /* Größerer Titel */
+h2 { font-size: 1.5rem; margin-bottom: 1.2rem; } /* Hauptsektions-Titel */
+h3 { font-size: 1.25rem; margin-bottom: 1rem; } /* Unter-Sektions-Titel (z.B. Anime/Manga Stats) */
+h4 { font-size: 1rem; margin-bottom: 0.8rem; color: var(--text-secondary); } /* Kleinere Titel, z.B. Status Distribution */
 
-h3 {
-    font-size: 1.2rem;
-    margin-bottom: 1rem;
-    color: var(--text-primary);
-}
-
-h4 {
-   margin: 20px 0 15px;
-   font-size: 1.1rem;
-   color: var(--text-secondary);
-}
 
 /* Section Styling */
 .section {
    background-color: var(--background-secondary);
-   border-radius: 8px;
-   padding: 30px;
-   margin-bottom: 25px;
-   color: var(--text-primary);
+   border-radius: var(--border-radius-large); /* Größerer Radius für modernes Aussehen */
+   padding: 25px 30px; /* Mehr Padding */
+   margin-bottom: 30px; /* Mehr Abstand zwischen Sektionen */
+   box-shadow: var(--shadow-soft);
 }
+/* Spezifische Anpassung für die Header-Sektion (Manual Backup & Titel) */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap; /* Umbruch auf kleineren Schirmen */
+    gap: 20px;
+    padding-bottom: 10px; /* Weniger Padding unten, da es nur der Header ist */
+}
+.section-header h1 { margin-bottom: 0; font-size: 1.8rem; }
+.section-header .input-group { margin-bottom: 0; }
+
 
 /* Input Styles */
 .input-group {
    display: flex;
-   gap: 10px;
-   margin-bottom: 15px;
-   align-items: center; /* Vertically align items */
+   gap: 12px; /* Etwas mehr Gap */
+   margin-bottom: 20px; /* Mehr Abstand unten */
+   align-items: center;
 }
+.input-group label { /* Für explizite Labels, falls verwendet */
+    color: var(--text-secondary);
+    margin-right: 8px;
+    font-size: 0.9rem;
+}
+/* Anpassung für Auto-Backup Inputs */
+.auto-backup-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.auto-backup-controls .input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.auto-backup-controls .input-row span {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+.auto-backup-controls input[type="number"] {
+    width: 80px !important; /* Feste Breite für diese speziellen Inputs */
+}
+
 
 input[type="text"], input[type="number"] {
    background-color: var(--background-tertiary);
-   border: 1px solid #404040; /* Subtle border */
-   padding: 8px 12px;
-   border-radius: 4px;
+   border: 1px solid var(--border-color);
+   padding: 10px 14px; /* Mehr Padding */
+   border-radius: var(--border-radius-medium); /* Konsistenter Radius */
    color: var(--text-primary);
-   font-size: 1rem;
-   height: 40px;
+   font-size: 0.95rem;
+   height: 44px; /* Einheitliche Höhe */
    box-sizing: border-box;
+   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+input[type="text"]::placeholder, input[type="number"]::placeholder {
+    color: var(--text-placeholder);
 }
 input[type="text"]:focus, input[type="number"]:focus {
     outline: none;
     border-color: var(--btn-blue);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); /* Deutlicherer Fokus */
 }
+input[type="text"] { width: 220px; }
+input[type="number"] { text-align: center; }
 
-
-input[type="text"] {
-   width: 200px;
-}
-
-input[type="number"] {
-   flex-grow: 0;
-   text-align: center;
-}
 
 /* Buttons */
 button {
-   padding: 12px 24px;
+   padding: 10px 20px; /* Angepasstes Padding */
    border: none;
-   border-radius: 4px;
+   border-radius: var(--border-radius-medium); /* Konsistenter Radius */
    cursor: pointer;
-   font-weight: 500;
-   font-size: 1rem;
-   min-width: 100px;
+   font-weight: 500; /* War 500, beibehalten oder auf 600 für fetter */
+   font-size: 0.95rem; /* Leicht angepasst */
+   min-width: 120px; /* Mindestbreite */
    color: white;
-   transition: background-color 0.2s ease, transform 0.1s ease;
+   transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+   text-align: center;
+}
+button:hover {
+    transform: translateY(-1px); /* Leichter Hover-Effekt */
+    box-shadow: var(--shadow-soft);
 }
 button:active {
-    transform: translateY(1px);
+    transform: translateY(0px);
+    box-shadow: none;
 }
-
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
 
 .btn-blue { background-color: var(--btn-blue); }
 .btn-green { background-color: var(--btn-green); }
@@ -149,505 +177,310 @@ button:active {
 
 .btn-blue:hover { background-color: #2563eb; }
 .btn-green:hover { background-color: #16a34a; }
-.btn-yellow:hover { background-color: #ca8a04; }
+.btn-yellow:hover { background-color: #ca8a04; } /* War yellow-500 hover */
 .btn-red:hover { background-color: #dc2626; }
 .btn-purple:hover { background-color: #7c3aed; }
 
-/* Table Styles */
+
+/* Table Styles ("Previous Backups") */
 .table {
    width: 100%;
-   border-collapse: collapse;
+   border-collapse: separate; /* Wichtig für border-radius an Zellen, falls benötigt, aber wir stylen Zeilen */
+   border-spacing: 0 8px; /* Vertikaler Abstand zwischen den Zeilen, macht sie kartenähnlicher */
 }
-
 .table th, .table td {
-   padding: 12px 10px; /* Increased padding */
-   border-bottom: 1px solid #404040;
+   padding: 14px 16px;
+   text-align: left;
+   vertical-align: middle; /* Bessere vertikale Ausrichtung */
 }
-
+.table thead tr { /* Header-Zeile direkt gestalten */
+    background-color: transparent; /* Kein eigener Hintergrund für die Header-Wrapper-Zeile */
+}
 .table th {
    background-color: var(--background-tertiary);
-   text-align: left;
-   font-weight: 500;
    color: var(--text-secondary);
+   font-weight: 600; /* Fetter für Header */
+   font-size: 0.9rem;
+   text-transform: uppercase; /* Optional: Header in Großbuchstaben */
+   letter-spacing: 0.5px; /* Optional: Etwas mehr Buchstabenabstand */
 }
+/* Ecken für erste und letzte Header-Zelle abrunden */
+.table th:first-child { border-top-left-radius: var(--border-radius-medium); border-bottom-left-radius: var(--border-radius-medium); }
+.table th:last-child { border-top-right-radius: var(--border-radius-medium); border-bottom-right-radius: var(--border-radius-medium); }
 
-.table tr:last-child td {
-    border-bottom: none;
+.table tbody tr {
+    background-color: var(--background-tertiary); /* Hintergrund für jede Datenzeile */
+    border-radius: var(--border-radius-medium); /* Abgerundete Ecken für jede Zeile */
+    box-shadow: var(--shadow-soft);
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
-.table tr:hover {
-    background-color: rgba(255,255,255,0.03);
+.table tbody tr:hover {
+    background-color: #303030; /* Leicht hellerer Hover */
+    transform: translateY(-2px); /* Leichter Anhebe-Effekt */
 }
+.table td {
+    border-bottom: none; /* Keine einzelnen Linien mehr zwischen Zellen */
+    font-size: 0.9rem;
+}
+.table td:first-child { border-top-left-radius: var(--border-radius-medium); border-bottom-left-radius: var(--border-radius-medium); }
+.table td:last-child { border-top-right-radius: var(--border-radius-medium); border-bottom-right-radius: var(--border-radius-medium); }
+
+.table .actions button { /* Buttons in der Tabelle */
+    padding: 8px 14px; /* Kleinere Buttons in der Tabelle */
+    font-size: 0.85rem;
+    min-width: 80px;
+    margin-right: 6px;
+}
+.table .actions button:last-child { margin-right: 0; }
 
 
 /* Modal Styling */
 .modal {
-   display: none;
-   position: fixed;
-   z-index: 1000; /* Ensure modal is on top */
-   left: 0;
-   top: 0;
-   width: 100%;
-   height: 100%;
-   background-color: rgba(0, 0, 0, 0.8); /* Darker overlay */
-   overflow-y: auto; /* Allow modal itself to scroll if content is too tall */
+   display: none; position: fixed; z-index: 1000; left: 0; top: 0;
+   width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); /* Noch dunklerer Overlay */
+   overflow-y: auto; padding: 20px; /* Padding, damit Modal nicht am Rand klebt */
+   box-sizing: border-box;
 }
-
 .modal-content {
-    padding: 24px;
-    width: 90%; /* Responsive width */
-    max-width: 1000px;  /* Increased for better layout */
+    padding: 30px; /* Mehr Padding im Modal */
+    width: 100%;
+    max-width: 900px; /* War 1000px, etwas schmaler für bessere Proportionen */
     background-color: var(--background-secondary);
-    margin: 5vh auto; /* Centered with margin from top/bottom */
-    border-radius: 8px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-    position: relative; /* For close button positioning */
+    margin: 5vh auto;
+    border-radius: var(--border-radius-large); /* Größerer Radius */
+    box-shadow: var(--shadow-medium); /* Deutlicherer Schatten */
+    position: relative;
 }
-
-#statsContentContainer { /* Specific container for stats inside modal */
-    max-height: 80vh; /* Max height for the content area */
-    overflow-y: auto; /* Scroll for content area if it overflows */
-}
-
-
-.stats-container { /* Old class, might be unused now, ensure new classes are used */
-    display: flex;
-    gap: 24px;
-    justify-content: space-between;
-}
-
-.stats-section { /* Old class, might be unused now */
-    flex: 1;
-    padding: 20px;
-    border-radius: 8px;
-}
+#statsContentContainer { max-height: 75vh; overflow-y: auto; padding-right: 10px; /* Platz für Scrollbar */ }
+.modal-content h2 { text-align: center; margin-bottom: 25px; } /* Modal-Titel zentrieren */
 
 
 /* Logs Section */
 .logs {
-   padding: 15px;
-   font-family: monospace;
-   font-size: 0.9rem;
-   max-height: 300px;
+   padding: 20px;
+   font-family: "Fira Code", "Consolas", monospace; /* Gute Monospace Fonts */
+   font-size: 0.85rem;
+   max-height: 350px; /* Etwas höher */
    overflow-y: auto;
-   background-color: var(--background-primary); /* Slightly darker than section */
-   border: 1px solid var(--background-tertiary);
-   border-radius: 6px;
-   line-height: 1.5;
+   background-color: var(--background-primary);
+   border: 1px solid var(--border-color);
+   border-radius: var(--border-radius-medium);
+   line-height: 1.6;
 }
-
-.log-entry {
-   margin: 5px 0;
-   padding: 3px 5px;
-   border-radius: 3px;
-}
-.log-entry span:first-child {
-    color: var(--text-secondary);
-    margin-right: 10px;
-}
-
-.log-success {
-   color: var(--status-completed);
-}
-.log-error { /* Added for error messages */
-    color: var(--status-dropped);
-}
+.log-entry { margin: 6px 0; padding: 4px 8px; border-radius: var(--border-radius-small); }
+.log-entry span:first-child { color: var(--text-secondary); margin-right: 12px; }
+.log-success { color: var(--status-completed); background-color: rgba(34, 197, 94, 0.1); }
+.log-error { color: var(--status-dropped); background-color: rgba(239, 68, 68, 0.1); }
 
 
-/* Close Button */
+/* Close Button (Modal) */
 .close {
-   color: #aaa;
-   position: absolute; /* Position relative to modal-content */
-   top: 10px;
-   right: 20px;
-   font-size: 28px;
-   font-weight: bold;
-   cursor: pointer;
+   color: var(--text-secondary);
+   position: absolute; top: 15px; right: 20px; font-size: 32px; font-weight: bold;
+   cursor: pointer; transition: color 0.2s ease, transform 0.2s ease;
 }
+.close:hover, .close:focus { color: var(--text-primary); transform: scale(1.1); }
 
-.close:hover, .close:focus {
-   color: white;
-   text-decoration: none;
-}
-
-/* Loading Animation */
-.loading-container {
-    display: flex;
-    align-items: center;
-    justify-content: center; /* Center it */
-    gap: 10px;
-    color: var(--text-secondary);
-    padding: 20px;
-}
-
-.loading-bar {
-    width: 50px;
-    height: 3px;
-    background-color: rgba(255, 255, 255, 0.2);
-    border-radius: 2px;
-    overflow: hidden;
-}
-
-.loading-bar-progress {
-    width: 100%;
-    height: 100%;
-    background-color: white;
-    animation: loading 1s infinite linear;
-    transform-origin: 0% 50%;
-}
-
-@keyframes loading {
-    0% { transform: scaleX(0); }
-    50% { transform: scaleX(1); }
-    100% { transform: scaleX(0); transform-origin: 100% 50%; }
-}
+/* Loading Animation (unverändert) */
+.loading-container { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--text-secondary); padding: 20px; }
+.loading-bar { width: 50px; height: 3px; background-color: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden; }
+.loading-bar-progress { width: 100%; height: 100%; background-color: white; animation: loading 1s infinite linear; transform-origin: 0% 50%; }
+@keyframes loading { 0% { transform: scaleX(0); } 50% { transform: scaleX(1); } 100% { transform: scaleX(0); transform-origin: 100% 50%; } }
 
 /* GitHub Footer */
 .github-footer {
-    position: fixed;
-    bottom: 0;
-    right: 0;
-    padding: 10px 15px;
-    background-color: var(--background-primary); /* Match body for consistency */
-    border-top-left-radius: 6px;
-    font-size: 0.9rem;
-    z-index: 100; /* Above other content but below modal */
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+    position: fixed; bottom: 0; left: 0; /* Links positionieren */
+    width: auto; /* Automatische Breite */
+    padding: 8px 12px; /* Weniger Padding */
+    background-color: var(--background-secondary); /* Passend zum Sektionshintergrund */
+    border-top-right-radius: var(--border-radius-medium);
+    font-size: 0.85rem; z-index: 100;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.2); /* Leichter Schatten nach oben */
 }
+.github-footer a { color: #58a6ff; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.github-footer a:hover { color: #79b8ff !important; text-decoration: underline; }
+.github-footer svg { fill: currentColor; }
 
-.github-footer a {
-    color: #58a6ff; /* Default link color */
-    text-decoration: none;
-}
-.github-footer a:hover {
-    color: #79b8ff !important; /* Hover color from HTML */
-    text-decoration: underline;
-}
 
-/* Detailed Stats Styling (for Modal and Main Page Overview) */
+/* Detailed Stats Styling (für Modal und Main Page Overview) */
 .detailed-stats-container {
     display: flex;
-    gap: 24px; /* Was 32px, adjusted for potentially smaller main page area */
-    padding: 10px 0; /* Reduced padding for main page */
+    gap: 25px; /* Konsistenter Gap */
+    padding: 10px 0;
+    flex-wrap: wrap; /* Erlaube Umbruch für bessere Responsivität */
 }
-
-.detailed-stats-section {
+.detailed-stats-section { /* Gilt für Anime und Manga Blöcke */
     flex: 1;
-    background-color: var(--background-tertiary);
-    border-radius: 12px;
-    padding: 20px; /* Was 24px */
+    min-width: 300px; /* Mindestbreite bevor Umbruch */
+    background-color: var(--background-tertiary); /* Leichter Kontrast zur Sektion */
+    border-radius: var(--border-radius-large);
+    padding: 20px;
+    box-shadow: var(--shadow-soft);
 }
-
-.detailed-stats-section h3 {
-    font-size: 1.3rem; /* Was 1.4rem */
-    margin: 0 0 20px 0; /* Was 24px */
+.detailed-stats-section h3 { /* Titel in den Stats-Sektionen (Anime/Manga) */
+    font-size: 1.15rem; /* Etwas kleiner als H3 oben */
+    margin: 0 0 20px 0;
     text-align: center;
     color: var(--text-primary);
     font-weight: 600;
+    border-bottom: 1px solid var(--border-color); /* Subtile Trennlinie */
+    padding-bottom: 10px;
 }
 
-.main-stats {
+.main-stats { /* Grid für "Total Entries", "Episodes", "Mean Score" */
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* Responsive columns */
-    gap: 16px; /* Was 20px */
-    margin-bottom: 24px; /* Was 32px */
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); /* Auto-responsive Spalten */
+    gap: 16px;
+    margin-bottom: 25px;
 }
-
-.stat-box {
-    background-color: var(--background-secondary);
-    padding: 12px; /* Was 16px */
-    border-radius: 10px;
+.stat-box { /* Einzelne Statistik-Karte */
+    background-color: var(--background-secondary); /* Noch eine Ebene tiefer für Kontrast */
+    padding: 16px 12px; /* Mehr vertikales Padding */
+    border-radius: var(--border-radius-medium);
     text-align: center;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1); /* Leichter innerer Schatten */
 }
-
-.stat-icon { /* Not currently used in JS, but can be added */
-    font-size: 1.5rem;
-    margin-bottom: 8px;
-}
-
 .stat-label {
     color: var(--text-secondary);
-    font-size: 0.85rem; /* Was 0.9rem */
-    margin-bottom: 6px; /* Was 8px */
+    font-size: 0.8rem; /* Kleineres Label */
+    margin-bottom: 8px; /* Mehr Abstand zum Wert */
+    text-transform: uppercase; /* Labels in Großbuchstaben */
+    letter-spacing: 0.5px;
 }
-
 .stat-value {
-    font-size: 1.4rem; /* Was 1.5rem */
-    font-weight: 600;
+    font-size: 1.75rem; /* Größerer Wert für Hervorhebung */
+    font-weight: 700; /* Fett */
     color: var(--text-primary);
+    line-height: 1.2; /* Engere Zeilenhöhe für große Zahlen */
 }
 
-.status-title { /* For modal */
-    font-size: 1.1rem;
+.status-title { /* Überschrift "Status Distribution" */
+    font-size: 0.9rem;
     color: var(--text-secondary);
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     text-align: center;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
-
-.status-grid {
+.status-grid { /* Grid für die farbigen Status-Boxen */
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); /* Responsive status boxes */
-    gap: 10px; /* Was 12px */
+    grid-template-columns: repeat(auto-fit, minmax(65px, 1fr)); /* Responsive Status-Boxen */
+    gap: 10px;
+}
+.status-box { /* Einzelne farbige Status-Box */
+    padding: 10px 6px;
+    border-radius: var(--border-radius-medium); /* Konsistenter Radius */
+    text-align: center;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    color: white; /* Text immer weiß in Status-Boxen */
+    font-weight: 500;
+}
+.status-box:hover { transform: scale(1.05); opacity: 0.95; } /* Größerer Hover-Effekt */
+
+.status-count {
+    font-size: 1.2rem; /* Größere Zahl */
+    font-weight: 700;
+    margin-bottom: 2px; /* Weniger Abstand zum Label */
+}
+.status-label {
+    font-size: 0.7rem; /* Kleineres Label */
+    opacity: 0.9; /* Leicht transparent */
+    text-transform: capitalize; /* Erster Buchstabe groß */
 }
 
-.status-box {
-    padding: 10px 6px; /* Was 12px 8px */
-    border-radius: 8px;
-    text-align: center;
-    transition: transform 0.2s, opacity 0.2s;
-    color: var(--text-primary); /* Ensure text inside is white */
-}
-/* Apply status colors directly if not done by specific classes */
+/* Status Farben (bereits definiert, hier nur zur Erinnerung) */
 .status-box.watching, .status-box.reading { background-color: var(--status-watching); }
 .status-box.completed { background-color: var(--status-completed); }
 .status-box.on-hold { background-color: var(--status-on-hold); }
 .status-box.dropped { background-color: var(--status-dropped); }
 .status-box.planning { background-color: var(--status-planning); }
 
-
-.status-box:hover {
-    transform: translateY(-2px);
-    opacity: 0.9;
-}
-
-.status-count {
-    font-size: 1.2rem; /* Was 1.3rem */
-    font-weight: 700;
-    margin-bottom: 4px;
-    color: inherit; /* Inherit from .status-box for white text */
-}
-
-.status-label {
-    font-size: 0.75rem; /* Was 0.8rem */
-    color: rgba(255, 255, 255, 0.85); /* Slightly more opaque */
-}
-
-.stats-divider { /* For modal between anime/manga sections */
+.stats-divider { /* Vertikale Trennlinie im Modal */
     width: 1px;
-    background-color: var(--background-secondary); /* Match other separators */
-    margin: 0 16px; /* Provide spacing */
+    background-color: var(--border-color); /* Subtile Farbe */
+    align-self: stretch; /* Dehnt sich über die Höhe des Flex-Containers */
+}
+/* Verstecke Divider, wenn die Sektionen umbrechen */
+@media (max-width: 768px) { /* Gilt für Modal auf Mobile */
+    .detailed-stats-container { flex-direction: column; }
+    .stats-divider { display: none; }
+}
+/* Zusätzliche Styling-Anpassungen für "Latest Backup Stats" auf der Hauptseite */
+#latestStatsOverview .detailed-stats-section {
+    padding: 15px; /* Etwas weniger Padding für die Hauptseite */
+}
+#latestStatsOverview .detailed-stats-section h3 {
+    font-size: 1.1rem;
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+}
+#latestStatsOverview .main-stats {
+    gap: 12px;
+    margin-bottom: 20px;
+}
+#latestStatsOverview .stat-box { padding: 12px 10px; }
+#latestStatsOverview .stat-value { font-size: 1.5rem; }
+#latestStatsOverview .status-grid { gap: 8px; }
+#latestStatsOverview .status-box { padding: 8px 5px; }
+#latestStatsOverview .status-count { font-size: 1.1rem; }
+#latestStatsOverview .status-label { font-size: 0.65rem; }
+#latestStatsOverview > p[style*="font-size: 0.8rem"] { /* "Last updated" Text */
+    margin-top: 15px;
+    font-size: 0.85rem !important; /* Etwas größer und !important, um Inline-Style zu überschreiben */
+    color: var(--text-secondary);
 }
 
 
-/* Mobile Styles */
+/* Mobile Styles (Anpassungen an bestehenden Breakpoints) */
 @media (max-width: 768px) {
-    body {
-        padding: 8px;
-    }
+    body { padding: 15px 10px; } /* Weniger horizontales Padding */
+    .container { padding: 0 5px; }
+    .section { padding: 20px 15px; margin-bottom: 20px; }
+    .section-header { flex-direction: column; align-items: stretch; } /* Header-Elemente untereinander */
+    .section-header h1 { text-align: center; }
+    .section-header .input-group { flex-direction: column; width: 100%; }
+    .section-header .input-group input[type="text"] { width: 100% !important; }
+    .section-header .input-group button { width: 100%; }
 
-    .container {
-        width: 100%;
-        padding: 0 8px;
-    }
+    h1 { font-size: 1.6rem; } h2 { font-size: 1.3rem; } h3 { font-size: 1.1rem; }
 
-    .section {
-        padding: 20px 16px; /* Adjusted padding */
-        margin-bottom: 20px;
-    }
-    
-    /* Layout for Manual & Auto Backup & Latest Stats Overview */
-    .section > div[style*="flex-wrap: wrap"] { /* Target the flex container for auto backup and latest stats */
-        flex-direction: column !important;
-        gap: 24px;
-    }
-     .section > div[style*="display: flex"] { /* General flex containers */
-        flex-direction: column;
-        gap: 15px;
-    }
+    .input-group { flex-direction: column; align-items: stretch; }
+    .input-group > div[style*="flex-direction: column"] { width: 100%; }
+    .auto-backup-controls .input-row { justify-content: space-between; }
+    .auto-backup-controls input[type="number"] { width: 60px !important; } /* Noch schmaler auf Mobile */
 
+    input[type="text"], input[type="number"], button { width: 100% !important; margin: 5px 0; }
 
-    h1, h2 {
-        text-align: center;
-    }
-    h2 {
-        font-size: 1.3rem;
-        margin-bottom: 16px;
-    }
+    .table { border-spacing: 0 10px; /* Etwas weniger Abstand für Mobile */ }
+    .table thead { display: none; }
+    .table tbody tr { display: block; margin-bottom: 15px; border-radius: var(--border-radius-medium); box-shadow: var(--shadow-soft); }
+    .table td { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--border-color); text-align: right; }
+    .table td:last-child { border-bottom: none; }
+    .table td:before { content: attr(data-label); font-weight: 500; color: var(--text-secondary); text-align: left; margin-right: 10px; }
+    .table .actions { display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: 10px; }
+    .table .actions button { width: 100%; margin-right: 0; }
 
-    .input-group {
-        flex-direction: column;
-        gap: 12px;
-        margin-bottom: 16px;
-    }
-     .input-group > div[style*="flex-direction: column"] { /* Inner flex for keep last/every */
-        width: 100%;
-    }
-    .input-group > div[style*="flex-direction: column"] > div { /* Each line (Keep last X backups) */
-        display: flex;
-        justify-content: space-between; /* Space out elements */
-        width: 100%;
-    }
+    .modal-content { padding: 20px; margin: 3vh auto; width: 95%; }
+    #statsContentContainer { max-height: 80vh; }
 
+    .detailed-stats-section { min-width: unset; /* Auf Mobile volle Breite erlauben */ }
+    .main-stats { grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); } /* Kleinere Basis für Mobile */
 
-    input[type="text"], 
-    input[type="number"] {
-        width: 100% !important; /* Force full width */
-        height: 44px;
-        margin: 0;
-    }
-
-
-    button {
-        width: 100%;
-        height: 44px;
-        padding: 0 16px;
-        font-size: 1rem;
-    }
-
-    /* Previous Backups Table Styling for Mobile */
-    .table {
-        display: block; /* Make table behave like a block for overflow */
-        overflow-x: auto; /* Allow horizontal scroll if content too wide */
-    }
-
-    .table thead {
-        display: none; /* Hide table headers */
-    }
-
-    .table tbody, .table tr, .table td {
-        display: block; /* Stack table elements */
-        width: 100% !important; /* Force full width */
-        box-sizing: border-box;
-    }
-
-    .table tr {
-        background-color: var(--background-tertiary);
-        border-radius: 8px;
-        margin-bottom: 12px;
-        padding: 12px; /* Padding inside each "card" */
-        border: 1px solid #404040;
-    }
-    .table tr:last-child {
-        margin-bottom: 0;
-    }
-
-
-    .table td {
-        padding: 8px 0; /* Adjust padding */
-        border-bottom: 1px solid var(--background-secondary); /* Separator inside card */
-        text-align: right; /* Align value to the right */
-        position: relative; /* For pseudo-element */
-    }
-    .table td:last-child {
-        border-bottom: none;
-    }
-
-    .table td:before {
-        content: attr(data-label);
-        font-weight: 500;
-        color: var(--text-secondary);
-        position: absolute;
-        left: 0;
-        text-align: left;
-        white-space: nowrap;
-    }
-    
-    .table td.actions { /* Special handling for actions cell */
-       padding-top: 10px;
-    }
-    .actions { /* Container for action buttons in table */
-        display: flex;
-        flex-direction: column; /* Stack buttons vertically on mobile */
-        gap: 8px;
-        margin-top: 8px;
-         /* border-top: 1px solid var(--background-secondary); /* Separator above actions */
-    }
-
-    .actions button {
-        width: 100%; /* Full width buttons */
-        font-size: 0.9rem;
-        padding: 10px 8px; /* Adjust padding */
-        height: auto; /* Auto height */
-        min-width: 0;
-    }
-
-
-    /* Logs Area */
-    .logs {
-        padding: 12px;
-        font-size: 0.85rem;
-        line-height: 1.4;
-    }
-
-    /* Modal Adjustments for Mobile */
-    .modal-content {
-        padding: 16px;
-        margin: 5vh auto; /* Less margin */
-        width: 95%; /* More width on mobile */
-    }
-    #statsContentContainer {
-         max-height: 85vh; /* Allow more height on mobile */
-    }
-
-
-    /* Detailed Stats in Modal and on Main Page for Mobile */
-    .detailed-stats-container {
-        flex-direction: column;
-        gap: 16px; /* Reduced gap */
-        padding: 0;
-    }
-
-    .detailed-stats-section {
-        padding: 16px; /* Reduced padding */
-    }
-    .detailed-stats-section h3 {
-        font-size: 1.1rem;
-        margin-bottom: 12px;
-    }
-
-    .main-stats {
-        grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); /* Smaller minmax */
-        gap: 10px;
-        margin-bottom: 16px;
-    }
-    .stat-box {
-        padding: 10px;
-    }
-    .stat-label { font-size: 0.75rem; margin-bottom: 4px; }
-    .stat-value { font-size: 1.2rem; }
-
-
-    .status-grid {
-        grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)) !important; /* Ensure it applies */
-        gap: 6px !important; /* Ensure it applies */
-    }
-    .status-box {
-        padding: 8px 4px;
-    }
-    .status-count { font-size: 1rem; }
-    .status-label { font-size: 0.65rem; }
-
-    .stats-divider { /* Hide divider on mobile as sections stack */
-        display: none;
-    }
-
-    .github-footer {
-        padding: 8px 10px;
-        font-size: 0.8rem;
-        text-align: center; /* Center on mobile */
-        width: 100%;
-        box-sizing: border-box;
-        border-top-left-radius: 0; /* Full width */
-        background-color: var(--background-secondary); /* Blend more */
-    }
+    .github-footer { padding: 10px; text-align: center; border-radius: 0; width: 100%; box-sizing: border-box; }
 }
 
-/* iPhone specific fine-tuning (if needed, often covered by max-width: 768px) */
-@media (max-width: 430px) {
-    .section {
-        padding: 15px 10px;
-    }
-    h1 { font-size: 1.3rem !important; }
-    h2 { font-size: 1.2rem; margin-bottom: 12px; }
-
-    input[type="text"], input[type="number"], button {
-        height: 40px;
-        font-size: 0.95rem;
-    }
+@media (max-width: 480px) { /* Feinabstimmung für sehr kleine Bildschirme */
+    body { padding: 10px 5px; }
+    .section { padding: 15px 10px; }
+    h1 { font-size: 1.4rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
     
-    .table td:before {
-        font-size: 0.9rem; /* Slightly smaller label on very small screens */
-    }
-    .actions button {
-        font-size: 0.85rem;
-    }
+    #latestStatsOverview .stat-value, .modal-content .stat-value { font-size: 1.3rem; }
+    #latestStatsOverview .status-count, .modal-content .status-count { font-size: 1rem; }
+    
+    .table td { flex-direction: column; align-items: flex-start; } /* Labels über den Werten auf sehr kleinen Screens */
+    .table td:before { margin-bottom: 4px; }
+    .table .actions button { font-size: 0.8rem; padding: 8px 10px; }
+
+    .logs { font-size: 0.75rem; }
 }
