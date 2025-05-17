@@ -118,6 +118,13 @@ async function fetchLatestStats() {
     }
 }
 
+function formatStatusLabel(status) {
+    // Ersetzt Underscores mit Leerzeichen und macht dann den ersten Buchstaben jedes Wortes groß.
+    // Beispiel: "on_hold" -> "On Hold", "plan_to_watch" -> "Plan To Watch"
+    return status.replace(/_/g, ' ')
+                 .replace(/\b\w/g, l => l.toUpperCase());
+}
+
 function displayLatestStats(statsData) {
     const statsOverviewDiv = document.getElementById('latestStatsOverview');
     if (!statsOverviewDiv) return;
@@ -145,9 +152,9 @@ function displayLatestStats(statsData) {
                     <div class="stat-box"> <div class="stat-label">Mean Score</div> <div class="stat-value">${anime.meanScore !== undefined && anime.meanScore > 0 ? anime.meanScore.toFixed(1) : 'N/A'}</div> </div>
                 </div>
                 <div class="status-grid">
-                    ${Object.entries(anime.status || {}).map(([status, count]) => `
-                        <div class="status-box ${status.toLowerCase().replace(/\s+/g, '-').replace('plan-to-watch', 'planning').replace('_','-')}" style="padding: 6px;">
-                            <div class="status-count">${count}</div> <div class="status-label" style="font-size: 0.7rem;">${status.replace(/([A-Z]|_)/g, ' $1').trim().replace(/\b\w/g, l => l.toUpperCase())}</div>
+                    ${Object.entries(anime.status || {}).map(([statusKey, count]) => `
+                        <div class="status-box ${statusKey.toLowerCase().replace(/\s+/g, '-').replace('_','-')}" style="padding: 6px;">
+                            <div class="status-count">${count}</div> <div class="status-label" style="font-size: 0.7rem;">${formatStatusLabel(statusKey)}</div>
                         </div>`).join('')}
                 </div>
             </div>
@@ -160,9 +167,9 @@ function displayLatestStats(statsData) {
                     <div class="stat-box"> <div class="stat-label">Mean Score</div> <div class="stat-value">${manga.meanScore !== undefined && manga.meanScore > 0 ? manga.meanScore.toFixed(1) : 'N/A'}</div> </div>
                 </div>
                  <div class="status-grid">
-                    ${Object.entries(manga.status || {}).map(([status, count]) => `
-                        <div class="status-box ${status.toLowerCase().replace(/\s+/g, '-').replace('plan-to-read', 'planning').replace('_','-')}" style="padding: 6px;">
-                            <div class="status-count">${count}</div> <div class="status-label" style="font-size: 0.7rem;">${status.replace(/([A-Z]|_)/g, ' $1').trim().replace(/\b\w/g, l => l.toUpperCase())}</div>
+                    ${Object.entries(manga.status || {}).map(([statusKey, count]) => `
+                        <div class="status-box ${statusKey.toLowerCase().replace(/\s+/g, '-').replace('_','-')}" style="padding: 6px;">
+                            <div class="status-count">${count}</div> <div class="status-label" style="font-size: 0.7rem;">${formatStatusLabel(statusKey)}</div>
                         </div>`).join('')}
                 </div>
             </div>
@@ -394,9 +401,9 @@ async function openStatsModal(backupId, username) {
                         </div>
                         <h4 class="status-title">Status Distribution</h4>
                         <div class="status-grid">
-                            ${Object.entries(anime.status || {}).map(([status, count]) => `
-                                <div class="status-box ${status.toLowerCase().replace(/\s+/g, '-').replace('plan-to-watch', 'planning').replace('_','-')}">
-                                    <div class="status-count">${count}</div> <div class="status-label">${status.replace(/([A-Z]|_)/g, ' $1').trim().replace(/\b\w/g, l => l.toUpperCase())}</div>
+                            ${Object.entries(anime.status || {}).map(([statusKey, count]) => `
+                                <div class="status-box ${statusKey.toLowerCase().replace(/\s+/g, '-').replace('_','-')}">
+                                    <div class="status-count">${count}</div> <div class="status-label">${formatStatusLabel(statusKey)}</div>
                                 </div>`).join('')}
                         </div>
                     </div>
@@ -411,9 +418,9 @@ async function openStatsModal(backupId, username) {
                         </div>
                         <h4 class="status-title">Status Distribution</h4>
                         <div class="status-grid">
-                             ${Object.entries(manga.status || {}).map(([status, count]) => `
-                                <div class="status-box ${status.toLowerCase().replace(/\s+/g, '-').replace('plan-to-read', 'planning').replace('_','-')}">
-                                    <div class="status-count">${count}</div> <div class="status-label">${status.replace(/([A-Z]|_)/g, ' $1').trim().replace(/\b\w/g, l => l.toUpperCase())}</div>
+                             ${Object.entries(manga.status || {}).map(([statusKey, count]) => `
+                                <div class="status-box ${statusKey.toLowerCase().replace(/\s+/g, '-').replace('_','-')}">
+                                    <div class="status-count">${count}</div> <div class="status-label">${formatStatusLabel(statusKey)}</div>
                                 </div>`).join('')}
                         </div>
                     </div>
