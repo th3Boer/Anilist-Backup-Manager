@@ -1,678 +1,653 @@
-let isAutoBackupRunning = false;
-let currentAutoBackupUsername = null;
+/* Variables */
+:root {
+  --background-primary: #1a1a1a;
+  --background-secondary: #2a2a2a;
+  --background-tertiary: #333333;
+  
+  --status-watching: #3b82f6;  /* Tailwind blue-500 */
+  --status-reading: #3b82f6;   /* Same as watching for manga */
+  --status-completed: #22c55e; /* Tailwind green-500 */
+  --status-on-hold: #eab308;      /* Tailwind yellow-500 */
+  --status-dropped: #ef4444;   /* Tailwind red-500 */
+  --status-planning: #8b5cf6;  /* Tailwind purple-500 */
+  
+  --btn-blue: var(--status-watching);
+  --btn-green: var(--status-completed);
+  --btn-yellow: var(--status-on-hold);
+  --btn-red: var(--status-dropped);
+  --btn-purple: var(--status-planning);
 
-const WELCOME_MESSAGE = "Welcome to the AniList Backup Manager! This tool helps you create and manage automatic backups from AniList.co\n⚠️ Important: Ensure that your AniList.co profile is set to \"Public\" so the backup can access your data.";
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af; /* gray-400 */
+}
 
-function addLog(message, isSuccess = false) {
-    const logContainer = document.getElementById('logContainer');
-    const logEntry = document.createElement('div');
-    logEntry.className = `log-entry${isSuccess ? ' log-success' : ''}`;
-    logEntry.textContent = `[${new Date().toLocaleString()}] ${message}`;
-    logContainer.appendChild(logEntry);
-    logContainer.scrollTop = logContainer.scrollHeight;
+/* Global Styles */
+body {
+   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+   background-color: var(--background-primary);
+   color: var(--text-primary);
+   margin: 0;
+   padding: 15px;
+}
 
-    fetch('/save-log', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            message,
-            isSuccess,
-            timestamp: new Date().toISOString()
-        })
-    }).catch(error => console.error('Error saving log:', error));
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--background-secondary);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #4a4a4a;
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #5a5a5a;
+}
+
+.container {
+   width: 90%;
+   max-width: 1200px;
+   margin: 0 auto;
+   padding: 0 15px;
+}
+
+/* Headings */
+h2, h3, h4 {
+   margin-top: 0;
+   font-weight: 500;
+}
+
+h2 {
+   font-size: 1.5rem;
+   margin-bottom: 1.2rem;
+   color: var(--text-primary);
+}
+
+h3 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+h4 {
+   margin: 20px 0 15px;
+   font-size: 1.1rem;
+   color: var(--text-secondary);
+}
+
+/* Section Styling */
+.section {
+   background-color: var(--background-secondary);
+   border-radius: 8px;
+   padding: 30px;
+   margin-bottom: 25px;
+   color: var(--text-primary);
+}
+
+/* Input Styles */
+.input-group {
+   display: flex;
+   gap: 10px;
+   margin-bottom: 15px;
+   align-items: center; /* Vertically align items */
+}
+
+input[type="text"], input[type="number"] {
+   background-color: var(--background-tertiary);
+   border: 1px solid #404040; /* Subtle border */
+   padding: 8px 12px;
+   border-radius: 4px;
+   color: var(--text-primary);
+   font-size: 1rem;
+   height: 40px;
+   box-sizing: border-box;
+}
+input[type="text"]:focus, input[type="number"]:focus {
+    outline: none;
+    border-color: var(--btn-blue);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+
+input[type="text"] {
+   width: 200px;
+}
+
+input[type="number"] {
+   flex-grow: 0;
+   text-align: center;
+}
+
+/* Buttons */
+button {
+   padding: 12px 24px;
+   border: none;
+   border-radius: 4px;
+   cursor: pointer;
+   font-weight: 500;
+   font-size: 1rem;
+   min-width: 100px;
+   color: white;
+   transition: background-color 0.2s ease, transform 0.1s ease;
+}
+button:active {
+    transform: translateY(1px);
+}
+
+
+.btn-blue { background-color: var(--btn-blue); }
+.btn-green { background-color: var(--btn-green); }
+.btn-purple { background-color: var(--btn-purple); }
+.btn-yellow { background-color: var(--btn-yellow); }
+.btn-red { background-color: var(--btn-red); }
+
+.btn-blue:hover { background-color: #2563eb; }
+.btn-green:hover { background-color: #16a34a; }
+.btn-yellow:hover { background-color: #ca8a04; }
+.btn-red:hover { background-color: #dc2626; }
+.btn-purple:hover { background-color: #7c3aed; }
+
+/* Table Styles */
+.table {
+   width: 100%;
+   border-collapse: collapse;
+}
+
+.table th, .table td {
+   padding: 12px 10px; /* Increased padding */
+   border-bottom: 1px solid #404040;
+}
+
+.table th {
+   background-color: var(--background-tertiary);
+   text-align: left;
+   font-weight: 500;
+   color: var(--text-secondary);
+}
+
+.table tr:last-child td {
+    border-bottom: none;
+}
+.table tr:hover {
+    background-color: rgba(255,255,255,0.03);
+}
+
+
+/* Modal Styling */
+.modal {
+   display: none;
+   position: fixed;
+   z-index: 1000; /* Ensure modal is on top */
+   left: 0;
+   top: 0;
+   width: 100%;
+   height: 100%;
+   background-color: rgba(0, 0, 0, 0.8); /* Darker overlay */
+   overflow-y: auto; /* Allow modal itself to scroll if content is too tall */
+}
+
+.modal-content {
+    padding: 24px;
+    width: 90%; /* Responsive width */
+    max-width: 1000px;  /* Increased for better layout */
+    background-color: var(--background-secondary);
+    margin: 5vh auto; /* Centered with margin from top/bottom */
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    position: relative; /* For close button positioning */
+}
+
+#statsContentContainer { /* Specific container for stats inside modal */
+    max-height: 80vh; /* Max height for the content area */
+    overflow-y: auto; /* Scroll for content area if it overflows */
+}
+
+
+.stats-container { /* Old class, might be unused now, ensure new classes are used */
+    display: flex;
+    gap: 24px;
+    justify-content: space-between;
+}
+
+.stats-section { /* Old class, might be unused now */
+    flex: 1;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+
+/* Logs Section */
+.logs {
+   padding: 15px;
+   font-family: monospace;
+   font-size: 0.9rem;
+   max-height: 300px;
+   overflow-y: auto;
+   background-color: var(--background-primary); /* Slightly darker than section */
+   border: 1px solid var(--background-tertiary);
+   border-radius: 6px;
+   line-height: 1.5;
+}
+
+.log-entry {
+   margin: 5px 0;
+   padding: 3px 5px;
+   border-radius: 3px;
+}
+.log-entry span:first-child {
+    color: var(--text-secondary);
+    margin-right: 10px;
+}
+
+.log-success {
+   color: var(--status-completed);
+}
+.log-error { /* Added for error messages */
+    color: var(--status-dropped);
+}
+
+
+/* Close Button */
+.close {
+   color: #aaa;
+   position: absolute; /* Position relative to modal-content */
+   top: 10px;
+   right: 20px;
+   font-size: 28px;
+   font-weight: bold;
+   cursor: pointer;
+}
+
+.close:hover, .close:focus {
+   color: white;
+   text-decoration: none;
+}
+
+/* Loading Animation */
+.loading-container {
+    display: flex;
+    align-items: center;
+    justify-content: center; /* Center it */
+    gap: 10px;
+    color: var(--text-secondary);
+    padding: 20px;
+}
+
+.loading-bar {
+    width: 50px;
+    height: 3px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.loading-bar-progress {
+    width: 100%;
+    height: 100%;
+    background-color: white;
+    animation: loading 1s infinite linear;
+    transform-origin: 0% 50%;
+}
+
+@keyframes loading {
+    0% { transform: scaleX(0); }
+    50% { transform: scaleX(1); }
+    100% { transform: scaleX(0); transform-origin: 100% 50%; }
+}
+
+/* GitHub Footer */
+.github-footer {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    padding: 10px 15px;
+    background-color: var(--background-primary); /* Match body for consistency */
+    border-top-left-radius: 6px;
+    font-size: 0.9rem;
+    z-index: 100; /* Above other content but below modal */
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+}
+
+.github-footer a {
+    color: #58a6ff; /* Default link color */
+    text-decoration: none;
+}
+.github-footer a:hover {
+    color: #79b8ff !important; /* Hover color from HTML */
+    text-decoration: underline;
+}
+
+/* Detailed Stats Styling (for Modal and Main Page Overview) */
+.detailed-stats-container {
+    display: flex;
+    gap: 24px; /* Was 32px, adjusted for potentially smaller main page area */
+    padding: 10px 0; /* Reduced padding for main page */
+}
+
+.detailed-stats-section {
+    flex: 1;
+    background-color: var(--background-tertiary);
+    border-radius: 12px;
+    padding: 20px; /* Was 24px */
+}
+
+.detailed-stats-section h3 {
+    font-size: 1.3rem; /* Was 1.4rem */
+    margin: 0 0 20px 0; /* Was 24px */
+    text-align: center;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.main-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* Responsive columns */
+    gap: 16px; /* Was 20px */
+    margin-bottom: 24px; /* Was 32px */
+}
+
+.stat-box {
+    background-color: var(--background-secondary);
+    padding: 12px; /* Was 16px */
+    border-radius: 10px;
+    text-align: center;
+}
+
+.stat-icon { /* Not currently used in JS, but can be added */
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.85rem; /* Was 0.9rem */
+    margin-bottom: 6px; /* Was 8px */
+}
+
+.stat-value {
+    font-size: 1.4rem; /* Was 1.5rem */
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.status-title { /* For modal */
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); /* Responsive status boxes */
+    gap: 10px; /* Was 12px */
+}
+
+.status-box {
+    padding: 10px 6px; /* Was 12px 8px */
+    border-radius: 8px;
+    text-align: center;
+    transition: transform 0.2s, opacity 0.2s;
+    color: var(--text-primary); /* Ensure text inside is white */
+}
+/* Apply status colors directly if not done by specific classes */
+.status-box.watching, .status-box.reading { background-color: var(--status-watching); }
+.status-box.completed { background-color: var(--status-completed); }
+.status-box.on-hold { background-color: var(--status-on-hold); }
+.status-box.dropped { background-color: var(--status-dropped); }
+.status-box.planning { background-color: var(--status-planning); }
+
+
+.status-box:hover {
+    transform: translateY(-2px);
+    opacity: 0.9;
+}
+
+.status-count {
+    font-size: 1.2rem; /* Was 1.3rem */
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: inherit; /* Inherit from .status-box for white text */
+}
+
+.status-label {
+    font-size: 0.75rem; /* Was 0.8rem */
+    color: rgba(255, 255, 255, 0.85); /* Slightly more opaque */
+}
+
+.stats-divider { /* For modal between anime/manga sections */
+    width: 1px;
+    background-color: var(--background-secondary); /* Match other separators */
+    margin: 0 16px; /* Provide spacing */
+}
+
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+    body {
+        padding: 8px;
+    }
+
+    .container {
+        width: 100%;
+        padding: 0 8px;
+    }
+
+    .section {
+        padding: 20px 16px; /* Adjusted padding */
+        margin-bottom: 20px;
+    }
     
-    updateBackupsList();
-}
-
-function loadLogs() {
-    fetch('/logs')
-        .then(response => response.json())
-        .then(logs => {
-            const logContainer = document.getElementById('logContainer');
-            logContainer.innerHTML = '';
-            
-            if (logs.length === 0) {
-                const welcomeLines = WELCOME_MESSAGE.split('\n');
-                welcomeLines.forEach(line => {
-                    const logEntry = document.createElement('div');
-                    logEntry.className = 'log-entry';
-                    logEntry.style.color = '#ffffff';
-                    logEntry.textContent = `[${new Date().toLocaleString()}] ${line}`;
-                    logContainer.appendChild(logEntry);
-                });
-            } else {
-                logs.forEach(log => {
-                    const logEntry = document.createElement('div');
-                    logEntry.className = `log-entry${log.is_success ? ' log-success' : ''}`;
-                    logEntry.textContent = `[${new Date(log.timestamp).toLocaleString()}] ${log.message}`;
-                    logContainer.appendChild(logEntry);
-                });
-            }
-            
-            logContainer.scrollTop = logContainer.scrollHeight;
-        })
-        .catch(error => console.error('Error loading logs:', error));
-}
-
-function setButtonLoading(button, isLoading, newText = null) {
-    if (isLoading) {
-        // Speichere den neuen Text statt des aktuellen, falls vorhanden
-        button.dataset.newText = newText || button.textContent;
-        button.disabled = true;
-        button.innerHTML = `
-            <div class="loading-container">
-                <div class="loading-bar">
-                    <div class="loading-bar-progress"></div>
-                </div>
-                <span>${button.textContent}</span>
-            </div>
-        `;
-    } else {
-        button.disabled = false;
-        // Verwende den gespeicherten neuen Text
-        button.textContent = button.dataset.newText || button.textContent;
-        delete button.dataset.newText;
+    /* Layout for Manual & Auto Backup & Latest Stats Overview */
+    .section > div[style*="flex-wrap: wrap"] { /* Target the flex container for auto backup and latest stats */
+        flex-direction: column !important;
+        gap: 24px;
     }
-}
+     .section > div[style*="display: flex"] { /* General flex containers */
+        flex-direction: column;
+        gap: 15px;
+    }
 
-function validateAutoBackupFields() {
-    const username = document.getElementById('autoUsername').value.trim();
-    const keepLast = document.getElementById('keepLastBackups').value.trim();
-    const interval = document.getElementById('backupInterval').value.trim();
+
+    h1, h2 {
+        text-align: center;
+    }
+    h2 {
+        font-size: 1.3rem;
+        margin-bottom: 16px;
+    }
+
+    .input-group {
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+     .input-group > div[style*="flex-direction: column"] { /* Inner flex for keep last/every */
+        width: 100%;
+    }
+    .input-group > div[style*="flex-direction: column"] > div { /* Each line (Keep last X backups) */
+        display: flex;
+        justify-content: space-between; /* Space out elements */
+        width: 100%;
+    }
+
+
+    input[type="text"], 
+    input[type="number"] {
+        width: 100% !important; /* Force full width */
+        height: 44px;
+        margin: 0;
+    }
+
+
+    button {
+        width: 100%;
+        height: 44px;
+        padding: 0 16px;
+        font-size: 1rem;
+    }
+
+    /* Previous Backups Table Styling for Mobile */
+    .table {
+        display: block; /* Make table behave like a block for overflow */
+        overflow-x: auto; /* Allow horizontal scroll if content too wide */
+    }
+
+    .table thead {
+        display: none; /* Hide table headers */
+    }
+
+    .table tbody, .table tr, .table td {
+        display: block; /* Stack table elements */
+        width: 100% !important; /* Force full width */
+        box-sizing: border-box;
+    }
+
+    .table tr {
+        background-color: var(--background-tertiary);
+        border-radius: 8px;
+        margin-bottom: 12px;
+        padding: 12px; /* Padding inside each "card" */
+        border: 1px solid #404040;
+    }
+    .table tr:last-child {
+        margin-bottom: 0;
+    }
+
+
+    .table td {
+        padding: 8px 0; /* Adjust padding */
+        border-bottom: 1px solid var(--background-secondary); /* Separator inside card */
+        text-align: right; /* Align value to the right */
+        position: relative; /* For pseudo-element */
+    }
+    .table td:last-child {
+        border-bottom: none;
+    }
+
+    .table td:before {
+        content: attr(data-label);
+        font-weight: 500;
+        color: var(--text-secondary);
+        position: absolute;
+        left: 0;
+        text-align: left;
+        white-space: nowrap;
+    }
     
-    if (!username) {
-        addLog('Please enter a username');
-        return false;
+    .table td.actions { /* Special handling for actions cell */
+       padding-top: 10px;
     }
-    if (!keepLast) {
-        addLog('Please specify how many backups to keep');
-        return false;
-    }
-    if (!interval) {
-        addLog('Please specify the backup interval');
-        return false;
+    .actions { /* Container for action buttons in table */
+        display: flex;
+        flex-direction: column; /* Stack buttons vertically on mobile */
+        gap: 8px;
+        margin-top: 8px;
+         /* border-top: 1px solid var(--background-secondary); /* Separator above actions */
     }
 
-    if (!Number.isInteger(Number(keepLast)) || Number(keepLast) <= 0) {
-        addLog('Keep last must be a positive whole number');
-        return false;
+    .actions button {
+        width: 100%; /* Full width buttons */
+        font-size: 0.9rem;
+        padding: 10px 8px; /* Adjust padding */
+        height: auto; /* Auto height */
+        min-width: 0;
     }
 
-    if (isNaN(Number(interval)) || Number(interval) <= 0) {
-        addLog('Interval must be a positive number');
-        return false;
+
+    /* Logs Area */
+    .logs {
+        padding: 12px;
+        font-size: 0.85rem;
+        line-height: 1.4;
     }
 
-    return true;
+    /* Modal Adjustments for Mobile */
+    .modal-content {
+        padding: 16px;
+        margin: 5vh auto; /* Less margin */
+        width: 95%; /* More width on mobile */
+    }
+    #statsContentContainer {
+         max-height: 85vh; /* Allow more height on mobile */
+    }
+
+
+    /* Detailed Stats in Modal and on Main Page for Mobile */
+    .detailed-stats-container {
+        flex-direction: column;
+        gap: 16px; /* Reduced gap */
+        padding: 0;
+    }
+
+    .detailed-stats-section {
+        padding: 16px; /* Reduced padding */
+    }
+    .detailed-stats-section h3 {
+        font-size: 1.1rem;
+        margin-bottom: 12px;
+    }
+
+    .main-stats {
+        grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); /* Smaller minmax */
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+    .stat-box {
+        padding: 10px;
+    }
+    .stat-label { font-size: 0.75rem; margin-bottom: 4px; }
+    .stat-value { font-size: 1.2rem; }
+
+
+    .status-grid {
+        grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)) !important; /* Ensure it applies */
+        gap: 6px !important; /* Ensure it applies */
+    }
+    .status-box {
+        padding: 8px 4px;
+    }
+    .status-count { font-size: 1rem; }
+    .status-label { font-size: 0.65rem; }
+
+    .stats-divider { /* Hide divider on mobile as sections stack */
+        display: none;
+    }
+
+    .github-footer {
+        padding: 8px 10px;
+        font-size: 0.8rem;
+        text-align: center; /* Center on mobile */
+        width: 100%;
+        box-sizing: border-box;
+        border-top-left-radius: 0; /* Full width */
+        background-color: var(--background-secondary); /* Blend more */
+    }
 }
 
+/* iPhone specific fine-tuning (if needed, often covered by max-width: 768px) */
+@media (max-width: 430px) {
+    .section {
+        padding: 15px 10px;
+    }
+    h1 { font-size: 1.3rem !important; }
+    h2 { font-size: 1.2rem; margin-bottom: 12px; }
 
-function setupSSEConnection() {
-    const eventSource = new EventSource('/events');
+    input[type="text"], input[type="number"], button {
+        height: 40px;
+        font-size: 0.95rem;
+    }
     
-    eventSource.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        if (data.type === 'backup_created') {
-            updateBackupsList();
-            updateOverview();
-        }
-    };
-
-    eventSource.onerror = function(error) {
-        console.error('SSE connection error:', error);
-        // Try to reconnect after 5 seconds
-        setTimeout(setupSSEConnection, 5000);
-    };
-}
-
-// Initial calls
-loadLogs();
-updateBackupsList();
-setupSSEConnection();
-
-// Check auto backup status on page load
-
-
-
-function updateButtonState(isRunning) {
-    const button = document.getElementById('autoBackupButton');
-    const usernameInput = document.getElementById('autoUsername');
-    const keepLastInput = document.getElementById('keepLastBackups');
-    const intervalInput = document.getElementById('backupInterval');
-    
-    if (isRunning) {
-        button.textContent = 'Stop';
-        button.className = 'btn-red';
-        usernameInput.disabled = true;
-        keepLastInput.disabled = true;
-        intervalInput.disabled = true;
-    } else {
-        button.textContent = 'Start';
-        button.className = 'btn-green';
-        usernameInput.disabled = false;
-        keepLastInput.disabled = false;
-        intervalInput.disabled = false;
+    .table td:before {
+        font-size: 0.9rem; /* Slightly smaller label on very small screens */
+    }
+    .actions button {
+        font-size: 0.85rem;
     }
 }
-
-
-async function cleanupUserBackups(username, keepLast) {
-    try {
-        const response = await fetch('/backups');
-        if (!response.ok) throw new Error('Failed to fetch backups');
-        
-        const backups = await response.json();
-        const userBackups = backups
-            .filter(backup => backup.username === username)
-            .sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        if (userBackups.length > keepLast) {
-            const backupsToDelete = userBackups.slice(keepLast);
-            for (const backup of backupsToDelete) {
-                await deleteBackup(backup.id, false);
-            }
-            addLog(`Deleted ${backupsToDelete.length} old backup(s) for ${username}`, true);
-        }
-    } catch (error) {
-        addLog(`Error cleaning up backups: ${error.message}`);
-    }
-}
-
-async function manualBackup() {
-    const username = document.getElementById('manualUsername').value.trim();
-    if (!username) {
-        addLog('Please enter a username');
-        return;
-    }
-
-    const button = document.querySelector('.btn-blue');
-    setButtonLoading(button, true);
-    addLog('Starting manual backup...', true);
-    
-    try {
-        const response = await fetch('/backup', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ username })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Backup failed');
-        }
-
-        addLog('Manual backup completed successfully!', true);
-        await updateBackupsList();
-        await updateOverview();
-    } catch (error) {
-        addLog(`Error: ${error.message}`);
-    } finally {
-        setButtonLoading(button, false);
-    }
-}
-
-async function toggleAutoBackup() {
-    const button = document.getElementById('autoBackupButton');
-    const usernameInput = document.getElementById('autoUsername');
-    const keepLastInput = document.getElementById('keepLastBackups');
-    const intervalInput = document.getElementById('backupInterval');
-    
-    const username = usernameInput.value.trim();
-    const keepLast = keepLastInput.value.trim();
-    const interval = intervalInput.value.trim();
-
-    // Startvorgang
-    if (button.textContent === 'Start') {
-        if (!validateAutoBackupFields()) {
-            return;
-        }
-        setButtonLoading(button, true, 'Stop');  // Hier den neuen Text mitgeben
-        try {
-            const response = await fetch('/auto-backup', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ 
-                    username, 
-                    keepLast: parseInt(keepLast), 
-                    interval: parseFloat(interval) 
-                })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to start auto backup');
-            }
-
-            isAutoBackupRunning = true;
-            currentAutoBackupUsername = username;
-            
-            usernameInput.disabled = true;
-            keepLastInput.disabled = true;
-            intervalInput.disabled = true;
-            
-            button.className = 'btn-red';
-            
-            addLog(`Started auto backup for ${username} - keeping last ${keepLast} backups, running every ${interval} hours`, true);
-            await cleanupUserBackups(username, parseInt(keepLast));
-        } catch (error) {
-            addLog(`Error: ${error.message}`);
-            setButtonLoading(button, true, 'Start');  // Bei Fehler zurück zu Start
-        } finally {
-            setButtonLoading(button, false);
-        }
-    } 
-    // Stoppvorgang
-    else {
-        setButtonLoading(button, true, 'Start');  // Hier den neuen Text mitgeben
-        try {
-            const response = await fetch('/stop-auto-backup', { 
-                method: 'POST'
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to stop auto backup');
-            }
-
-            isAutoBackupRunning = false;
-            currentAutoBackupUsername = null;
-            
-            usernameInput.disabled = false;
-            keepLastInput.disabled = false;
-            intervalInput.disabled = false;
-            
-            button.className = 'btn-green';
-            
-            addLog('Auto backup stopped successfully', true);
-        } catch (error) {
-            addLog(`Error: ${error.message}`);
-            setButtonLoading(button, true, 'Stop');  // Bei Fehler zurück zu Stop
-        } finally {
-            setButtonLoading(button, false);
-        }
-    }
-}
-
-// In main.js, update die Funktion, die die Backup-Zeilen erstellt:
-
-function updateBackupsList() {
-    try {
-        fetch('/backups')
-            .then(response => response.json())
-            .then(backups => {
-                const tbody = document.getElementById('backupsTableBody');
-                tbody.innerHTML = '';
-
-                backups.forEach(backup => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td data-label="Date">${new Date(backup.date).toLocaleString()}</td>
-                        <td data-label="Username">${backup.username}</td>
-                        <td data-label="Content">${backup.content}</td>
-                        <td data-label="Actions">
-                            <div class="actions">
-                                <button class="btn-purple" onclick="showStats('${backup.id}')">Stats</button>
-                                <button class="btn-yellow" onclick="downloadBackup('${backup.id}')">Download</button>
-                                <button class="btn-red" onclick="deleteBackup('${backup.id}', true)">Delete</button>
-                            </div>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            });
-    } catch (error) {
-        addLog(`Error updating backups list: ${error.message}`);
-    }
-}
-
-
-
-
-
-async function downloadBackup(backupId) {
-    try {
-        const response = await fetch(`/backup/${backupId}/download`);
-        if (!response.ok) throw new Error('Failed to download backup');
-        
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `backup_${backupId}.zip`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        
-        addLog('Backup downloaded successfully!', true);
-    } catch (error) {
-        addLog(`Error downloading backup: ${error.message}`);
-    }
-}
-
-async function deleteBackup(backupId, showConfirm = true) {
-    if (showConfirm && !confirm('Are you sure you want to delete this backup?')) return;
-
-    try {
-        const response = await fetch(`/backup/${backupId}`, {
-            method: 'DELETE'
-        });
-        
-        if (!response.ok) throw new Error('Failed to delete backup');
-        
-        if (showConfirm) {
-            addLog('Backup deleted successfully!', true);
-        }
-        await updateBackupsList();
-    } catch (error) {
-        if (showConfirm) {
-            addLog(`Error deleting backup: ${error.message}`);
-        }
-    }
-}
-
-function showStats(backupId) {
-    try {
-        fetch(`/backup/${backupId}/stats`)
-            .then(response => response.json())
-            .then(stats => {
-                const statsContent = document.getElementById('statsContent');
-                
-                statsContent.innerHTML = `
-                    <div class="detailed-stats-container">
-                        <div class="detailed-stats-section">
-                            <h3>Anime Statistics</h3>
-                            <div class="main-stats">
-                                <div class="stat-box">
-                                    <div class="stat-icon">📚</div>
-                                    <div class="stat-label">Total Entries</div>
-                                    <div class="stat-value">${stats.anime.totalEntries}</div>
-                                </div>
-                                <div class="stat-box">
-                                    <div class="stat-icon">⏱️</div>
-                                    <div class="stat-label">Time Watched</div>
-                                    <div class="stat-value">${stats.anime.timeWatched}h</div>
-                                </div>
-                                <div class="stat-box">
-                                    <div class="stat-icon">⭐</div>
-                                    <div class="stat-label">Mean Score</div>
-                                    <div class="stat-value">${stats.anime.meanScore.toFixed(1)}</div>
-                                </div>
-                            </div>
-                            
-                            <div class="status-title">Status Distribution</div>
-                            <div class="status-grid">
-                                <div class="status-box watching">
-                                    <div class="status-count">${stats.anime.status?.watching || 0}</div>
-                                    <div class="status-label">Watching</div>
-                                </div>
-                                <div class="status-box completed">
-                                    <div class="status-count">${stats.anime.status?.completed || 0}</div>
-                                    <div class="status-label">Completed</div>
-                                </div>
-                                <div class="status-box on-hold">
-                                    <div class="status-count">${stats.anime.status?.on_hold || 0}</div>
-                                    <div class="status-label">On Hold</div>
-                                </div>
-                                <div class="status-box dropped">
-                                    <div class="status-count">${stats.anime.status?.dropped || 0}</div>
-                                    <div class="status-label">Dropped</div>
-                                </div>
-                                <div class="status-box planning">
-                                    <div class="status-count">${stats.anime.status?.planning || 0}</div>
-                                    <div class="status-label">Plan to Watch</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="stats-divider"></div>
-                        
-                        <div class="detailed-stats-section">
-                            <h3>Manga Statistics</h3>
-                            <div class="main-stats">
-                                <div class="stat-box">
-                                    <div class="stat-icon">📚</div>
-                                    <div class="stat-label">Total Entries</div>
-                                    <div class="stat-value">${stats.manga.totalEntries}</div>
-                                </div>
-                                <div class="stat-box">
-                                    <div class="stat-icon">📖</div>
-                                    <div class="stat-label">Chapters Read</div>
-                                    <div class="stat-value">${stats.manga.chaptersRead}</div>
-                                </div>
-                                <div class="stat-box">
-                                    <div class="stat-icon">⭐</div>
-                                    <div class="stat-label">Mean Score</div>
-                                    <div class="stat-value">${stats.manga.meanScore.toFixed(1)}</div>
-                                </div>
-                            </div>
-                            
-                            <div class="status-title">Status Distribution</div>
-                            <div class="status-grid">
-                                <div class="status-box reading">
-                                    <div class="status-count">${stats.manga.status?.reading || 0}</div>
-                                    <div class="status-label">Reading</div>
-                                </div>
-                                <div class="status-box completed">
-                                    <div class="status-count">${stats.manga.status?.completed || 0}</div>
-                                    <div class="status-label">Completed</div>
-                                </div>
-                                <div class="status-box on-hold">
-                                    <div class="status-count">${stats.manga.status?.on_hold || 0}</div>
-                                    <div class="status-label">On Hold</div>
-                                </div>
-                                <div class="status-box dropped">
-                                    <div class="status-count">${stats.manga.status?.dropped || 0}</div>
-                                    <div class="status-label">Dropped</div>
-                                </div>
-                                <div class="status-box planning">
-                                    <div class="status-count">${stats.manga.status?.planning || 0}</div>
-                                    <div class="status-label">Plan to Read</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                modal.style.display = "block";
-            });
-    } catch (error) {
-        addLog(`Error showing stats: ${error.message}`);
-    }
-}
-
-async function updateOverview() {
-    try {
-        const response = await fetch('/backups');
-        if (!response.ok) throw new Error('Failed to fetch backups');
-        
-        const backups = await response.json();
-        if (backups.length > 0) {
-            const latestBackup = backups[0];
-            const statsResponse = await fetch(`/backup/${latestBackup.id}/stats`);
-            if (!statsResponse.ok) throw new Error('Failed to fetch stats');
-            
-            const stats = await statsResponse.json();
-            
-            document.getElementById('animeTotalEntries').textContent = stats.anime.totalEntries;
-            document.getElementById('animeTimeWatched').textContent = `${stats.anime.timeWatched}h`;
-            document.getElementById('animeMeanScore').textContent = stats.anime.meanScore.toFixed(1);
-            
-            document.getElementById('mangaTotalEntries').textContent = stats.manga.totalEntries;
-            document.getElementById('mangaChaptersRead').textContent = stats.manga.chaptersRead;
-            document.getElementById('mangaMeanScore').textContent = stats.manga.meanScore.toFixed(1);
-        }
-    } catch (error) {
-        console.error('Error updating overview:', error);
-    }
-}
-
-// Modal handling
-const modal = document.getElementById("statsModal");
-const closeBtn = document.getElementsByClassName("close")[0];
-
-closeBtn.onclick = function() {
-    modal.style.display = "none";
-}
-
-window.onclick = function(event) {
-    if (event.target == modal) {
-        modal.style.display = "none";
-    }
-}
-
-
-// Stats Overview Component
-const StatsOverview = () => {
-    const container = document.getElementById('statsOverview');
-    container.innerHTML = `
-        <div class="stats-overview">
-            <div class="stats-card">
-                <div class="stats-card-header">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" class="mr-2">
-                        <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
-                        <polyline points="17 2 12 7 7 2"></polyline>
-                    </svg>
-                    <h3>Anime Stats</h3>
-                </div>
-                <div class="stats-card-content">
-                    <div class="stats-card-item">
-                        <div class="stats-card-label">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" class="mr-2">
-                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                            </svg>
-                            Total Entries
-                        </div>
-                        <div class="stats-card-value">
-                            <span id="animeTotalEntries"></span>
-                        </div>
-                    </div>
-                    <div class="stats-card-item">
-                        <div class="stats-card-label">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" class="mr-2">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <polyline points="12 6 12 12 16 14"></polyline>
-                            </svg>
-                            Time Watched
-                        </div>
-                        <div class="stats-card-value">
-                            <span id="animeTimeWatched"></span>
-                        </div>
-                    </div>
-                    <div class="stats-card-item">
-                        <div class="stats-card-label">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" class="mr-2">
-                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                            </svg>
-                            Mean Score
-                        </div>
-                        <div class="stats-card-value">
-                            <span id="animeMeanScore"></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="stats-card">
-                <div class="stats-card-header">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" class="mr-2">
-                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                    </svg>
-                    <h3>Manga Stats</h3>
-                </div>
-                <div class="stats-card-content">
-                    <div class="stats-card-item">
-                        <div class="stats-card-label">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" class="mr-2">
-                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                            </svg>
-                            Total Entries
-                        </div>
-                        <div class="stats-card-value">
-                            <span id="mangaTotalEntries"></span>
-                        </div>
-                    </div>
-                    <div class="stats-card-item">
-                        <div class="stats-card-label">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" class="mr-2">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                <line x1="3" y1="9" x2="21" y2="9"></line>
-                                <line x1="9" y1="21" x2="9" y2="9"></line>
-                            </svg>
-                            Chapters Read
-                        </div>
-                        <div class="stats-card-value">
-                            <span id="mangaChaptersRead"></span>
-                        </div>
-                    </div>
-                    <div class="stats-card-item">
-                        <div class="stats-card-label">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" class="mr-2">
-                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                            </svg>
-                            Mean Score
-                        </div>
-                        <div class="stats-card-value">
-                            <span id="mangaMeanScore"></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-};
-
-// Initialize the overview on page load
-document.addEventListener('DOMContentLoaded', () => {
-    StatsOverview();
-});
-
-// Initialize the overview on page load
-document.addEventListener('DOMContentLoaded', () => {
-    StatsOverview();
-});
-
-// Initialize the overview on page load
-document.addEventListener('DOMContentLoaded', () => {
-    StatsOverview();
-});
-
-// Initialize the overview on page load
-document.addEventListener('DOMContentLoaded', () => {
-    StatsOverview();
-});
-
-// Rest of your existing main.js code here...
-
-
-// Initial calls
-loadLogs();
-updateBackupsList();
-
-// Check auto backup status on page load
-fetch('/auto-backup-status')
-    .then(response => response.json())
-    .then(status => {
-        isAutoBackupRunning = status.running;
-        const usernameInput = document.getElementById('autoUsername');
-        const keepLastInput = document.getElementById('keepLastBackups');
-        const intervalInput = document.getElementById('backupInterval');
-
-        if (status.running && status.config) {
-            usernameInput.value = status.config.username;
-            keepLastInput.value = status.config.keepLast;
-            intervalInput.value = status.config.interval;
-        }
-        
-        updateButtonState(status.running);
-    })
-    .catch(error => console.error('Error checking auto backup status:', error));
