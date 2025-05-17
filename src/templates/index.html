@@ -8,71 +8,67 @@
 </head>
 <body>
     <div class="container">
-        <div class="section">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-                <div>
-                    <h2 style="margin-bottom: 10px;">Manual Backup</h2>
-                    <div class="input-group" style="margin-bottom: 0;">
-                        <input type="text" placeholder="Enter username" id="manualUsername">
-                        <button class="btn-blue" onclick="manualBackup()">Backup</button>
-                    </div>
-                </div>
-                <div style="text-align: right;">
-                    <h1 style="margin: 0; font-size: 1.8rem;">AniList Backup Manager</h1>
+        <!-- Header Section -->
+        <div class="section section-header">
+            <div>
+                <h2 style="margin-bottom: 10px;">Manual Backup</h2>
+                <div class="input-group">
+                    <input type="text" placeholder="Enter AniList Username" id="manualUsername">
+                    <button class="btn-blue" onclick="manualBackup()">Backup Now</button>
                 </div>
             </div>
+            <h1 title="AniList Backup Manager">AniList Vault</h1> <!-- Titel leicht geändert für Kürze, oder original behalten -->
         </div>
 
+        <!-- Auto Backup & Latest Stats Section -->
         <div class="section">
-            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 20px;">
-                <div style="flex: 1; min-width: 300px;">
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 30px;">
+                <div style="flex: 1; min-width: 320px;"> <!-- Mindestbreite für bessere Umbrüche -->
                     <h2>Auto Backup</h2>
-                    <div class="input-group">
-                        <input type="text" placeholder="Enter username" id="autoUsername">
-                        <button id="autoBackupButton" class="btn-green" onclick="toggleAutoBackup()">Start</button>
-                    </div>
-                    <div class="input-group" style="align-items: flex-start; gap: 15px;">
-                        <div style="display: flex; flex-direction: column; gap: 10px;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="color: #ffffff; font-size: 1rem;">Keep last</span>
-                                <input type="number" id="keepLastBackups" style="width: 100px; margin: 0;" value="5">
-                                <span style="color: #ffffff; font-size: 1rem;">backups</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="color: #ffffff; font-size: 1rem;">Every</span>
-                                <input type="number" id="backupInterval" style="width: 100px; margin: 0;" value="24">
-                                <span style="color: #ffffff; font-size: 1rem;">hours</span>
-                            </div>
+                    <div class="auto-backup-controls">
+                        <div class="input-group"> <!-- Username und Start-Button -->
+                            <input type="text" placeholder="AniList Username" id="autoUsername" style="flex-grow: 1;">
+                            <button id="autoBackupButton" class="btn-green" onclick="toggleAutoBackup()">Start</button>
+                        </div>
+                        <div class="input-row">
+                            <span>Keep last</span>
+                            <input type="number" id="keepLastBackups" value="5">
+                            <span>backups</span>
+                        </div>
+                        <div class="input-row">
+                            <span>Every</span>
+                            <input type="number" id="backupInterval" value="24">
+                            <span>hours</span>
                         </div>
                     </div>
                 </div>
-                <div style="flex: 1; min-width: 300px;">
+                <div style="flex: 2; min-width: 400px;"> <!-- Mehr Platz für Stats -->
                     <h2>Latest Backup Stats</h2>
                     <div id="latestStatsOverview">
-                        <!-- Stats will be loaded here by JS -->
                         {% if latest_stats %}
                             <script>
-                                // Pass initial data to JS if available
                                 const initialLatestStats = {{ latest_stats | tojson }};
                             </script>
                         {% else %}
                             <script>
                                 const initialLatestStats = null;
                             </script>
-                            <p>No backup data available yet. Create a backup to see stats here.</p>
                         {% endif %}
+                        <!-- Stats werden hier von JS geladen -->
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- Logs Section -->
         <div class="section">
-            <h2>Logs</h2>
+            <h2>Activity Logs</h2>
             <div class="logs" id="logContainer">
-                <!-- Logs will be loaded here -->
+                <!-- Logs werden hier geladen -->
             </div>
         </div>
 
+        <!-- Previous Backups Section -->
         <div class="section">
             <h2>Previous Backups</h2>
             <table class="table">
@@ -85,7 +81,7 @@
                     </tr>
                 </thead>
                 <tbody id="backupsTableBody">
-                    <!-- Backups will be listed here -->
+                    <!-- Backups werden hier gelistet -->
                 </tbody>
             </table>
         </div>
@@ -94,27 +90,25 @@
     <!-- Stats Modal -->
     <div id="statsModal" class="modal">
         <div class="modal-content">
-            <span class="close" onclick="closeStatsModal()">×</span> <!-- Added onclick -->
+            <span class="close" onclick="closeStatsModal()">×</span>
             <h2>Detailed Statistics for <span id="statsModalUsername"></span></h2>
             <div id="statsContentContainer">
-                <!-- Detailed stats will be rendered here using new structure -->
+                <!-- Detaillierte Statistiken werden hier gerendert -->
             </div>
         </div>
     </div>
 
     <!-- GitHub Footer -->
     <div class="github-footer">
-        <a href="https://github.com/th3Boer/Anilist-Backup-Manager" target="_blank" 
-           style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: #58a6ff;">
-            <svg height="16" width="16" viewBox="0 0 16 16" style="fill: currentColor;">
+        <a href="https://github.com/th3Boer/Anilist-Backup-Manager" target="_blank">
+            <svg height="16" width="16" viewBox="0 0 16 16">
                 <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
             </svg>
-            th3Boer/Anilist-Backup-Manager
+            <span>th3Boer/Anilist-Backup-Manager</span>
         </a>
     </div>
-    <!-- Add this script block at the end of your body -->
+
     <script>
-        // Make initialLatestStats globally available if passed from template
         window.initialLatestStats = typeof initialLatestStats !== 'undefined' ? initialLatestStats : null;
     </script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
