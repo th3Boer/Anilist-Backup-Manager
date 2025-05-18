@@ -1,7 +1,14 @@
 services:
   anilist-vault:
-    build: .
+    container_name: anivault
+    image: ghcr.io/th3boer/anilist-backup-manager:latest
     ports:
       - "5000:5000"
     volumes:
-      - ./backups:/app/backups
+      - /data/docker/container/anilist-vault/backups:/app/backups
+    restart: unless-stopped
+    networks:
+      - Docker-Network
+networks:
+  Docker-Network:
+    external: true
