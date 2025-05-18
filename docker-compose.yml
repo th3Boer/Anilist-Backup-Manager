@@ -7,8 +7,3 @@ services:
     volumes:
       - /data/docker/container/anilist-vault/backups:/app/backups
     restart: unless-stopped
-    networks:
-      - Docker-Network
-networks:
-  Docker-Network:
-    external: true
