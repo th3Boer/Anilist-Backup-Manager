@@ -2,7 +2,7 @@
 
 Easily create and manage backups of your AniList.co anime and manga lists with AniList Vault! This web-based tool allows you to perform manual or automatic backups, storing detailed statistics like total entries, time watched, mean scores, and more.
 
-# IMPROTANT: Your AniList Profile needs to be public.
+# IMPORTANT: Your AniList Profile needs to be public.
 
 AniList Vault runs Docker container for simple setup and portability.
 
