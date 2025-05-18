@@ -2,18 +2,15 @@
 
 Easily create and manage backups of your AniList.co anime and manga lists with AniList Vault! This web-based tool allows you to perform manual or automatic backups, storing detailed statistics like total entries, time watched, mean scores, and more.
 
-AniList Vault runs महिला Docker container for simple setup and portability.
+AniList Vault runs Docker container for simple setup and portability.
 
-<!-- Optional: Add a screenshot of the application here -->
-<!-- <p align="center">
-  <img src="link_to_screenshot.png" alt="Anilist Backup Manager Screenshot" width="700"/>
-</p> -->
+![Screenshot 2025-05-18 020208](https://github.com/user-attachments/assets/03b30da7-b140-4d8b-9e92-3ef8685ba4db)
 
 ## ✨ Key Features
 
 *   **Effortless Backups:**
     *   **Manual:** Create a full backup of your lists with a single click.
-    *   **Automatic:** Schedule recurring backups at your preferred interval (e.g., daily, 특정). Keep a configurable number of recent backups, with older ones being automatically removed.
+    *   **Automatic:** Schedule recurring backups at your preferred interval (e.g., daily). Keep a configurable number of recent backups, with older ones being automatically removed.
 *   **Insightful Statistics:**
     *   View comprehensive statistics for your anime and manga activity directly within the application.
     *   Track total entries, episodes watched, chapters/volumes read, average scores, and how your lists are distributed across statuses (Watching, Completed, On-Hold, Dropped, Planning).
