@@ -31,7 +31,7 @@ AniList Vault runs Docker container for simple setup and portability.
 *   **Dockerized for Convenience:** Packaged as a Docker container for smooth and straightforward deployment.
 
 
-### Access AniList Vault:**
+### Access AniList Vault:
     Open your web browser and go to `http://localhost:5000` (or the IP address of your Docker host if it's running elsewhere).
 
 ### Where Your Data is Saved
