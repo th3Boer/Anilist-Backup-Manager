@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AniList Backup Manager</title>
+    <title>AniVault - AniList Backup Manager</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
@@ -17,32 +17,32 @@
                     <button class="btn-blue" onclick="manualBackup()">Backup Now</button>
                 </div>
             </div>
-            <h1 title="AniList Backup Manager">AniList Vault</h1> <!-- Titel leicht geändert für Kürze, oder original behalten -->
+            <h1 title="AniVault - AniList Backup Manager">AniVault</h1>
         </div>
 
         <!-- Auto Backup & Latest Stats Section -->
         <div class="section">
             <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 30px;">
-                <div style="flex: 1; min-width: 320px;"> <!-- Mindestbreite für bessere Umbrüche -->
+                <div style="flex: 1; min-width: 320px;">
                     <h2>Auto Backup</h2>
                     <div class="auto-backup-controls">
-                        <div class="input-group"> <!-- Username und Start-Button -->
+                        <div class="input-group">
                             <input type="text" placeholder="AniList Username" id="autoUsername" style="flex-grow: 1;">
                             <button id="autoBackupButton" class="btn-green" onclick="toggleAutoBackup()">Start</button>
                         </div>
                         <div class="input-row">
                             <span>Keep last</span>
-                            <input type="number" id="keepLastBackups" value="5">
+                            <input type="number" id="keepLastBackups" value="5" min="1">
                             <span>backups</span>
                         </div>
                         <div class="input-row">
                             <span>Every</span>
-                            <input type="number" id="backupInterval" value="24">
+                            <input type="number" id="backupInterval" value="24" min="1">
                             <span>hours</span>
                         </div>
                     </div>
                 </div>
-                <div style="flex: 2; min-width: 400px;"> <!-- Mehr Platz für Stats -->
+                <div style="flex: 2; min-width: 400px;">
                     <h2>Latest Backup Stats</h2>
                     <div id="latestStatsOverview">
                         {% if latest_stats %}
@@ -104,7 +104,7 @@
             <svg height="16" width="16" viewBox="0 0 16 16">
                 <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
             </svg>
-            <span>th3Boer/Anilist-Backup-Manager</span>
+            <span>AniVault Project (th3Boer/Anilist-Backup-Manager)</span>
         </a>
     </div>
 
