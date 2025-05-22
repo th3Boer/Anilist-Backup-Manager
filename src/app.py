@@ -48,7 +48,7 @@ query ($username: String) {
                         romaji
                     }
                 }
-                score
+                score # User's raw score
                 progress
                 status
                 repeat # For my_times_watched
@@ -64,7 +64,7 @@ query ($username: String) {
                         romaji
                     }
                 }
-                score
+                score # User's raw score
                 progress # For my_read_chapters
                 progressVolumes # For my_read_volumes
                 status
@@ -120,13 +120,10 @@ def load_config():
                     return config_data
                 else:
                     save_log(f"Config file {CONFIG_FILE} is malformed. Ignoring.", False)
-                    # Optionally, delete the malformed config file
-                    # os.remove(CONFIG_FILE)
                     return None
         return None
     except json.JSONDecodeError:
         save_log(f"Error decoding JSON from config file {CONFIG_FILE}. Ignoring.", False)
-        # os.remove(CONFIG_FILE) # Or rename to .bak
         return None
     except Exception as e:
         save_log(f"Error loading config from {CONFIG_FILE}: {str(e)}", False)
@@ -179,7 +176,7 @@ def save_log(message, is_success=False):
         logs = logs[-MAX_LOGS:]
         
         with open(LOGS_FILE, 'w') as f:
-            json.dump(logs, f, indent=2) # Added indent for readability
+            json.dump(logs, f, indent=2)
 
         sse_queue.put({'type': 'log_updated', 'data': log_entry_data})
             
@@ -279,29 +276,46 @@ def generate_mal_xml(entries, type='anime'):
     <update_on_import>1</update_on_import>
   </manga>
 """
-    status_map_anime = { 'CURRENT': 'Watching', 'COMPLETED': 'Completed', 'PLANNING': 'Plan to Watch', 'DROPPED': 'Dropped', 'PAUSED': 'On-Hold' }
-    status_map_manga = { 'CURRENT': 'Reading', 'COMPLETED': 'Completed', 'PLANNING': 'Plan to Read', 'DROPPED': 'Dropped', 'PAUSED': 'On-Hold' }
+    # MAL numeric status codes: 1: Watching/Reading, 2: Completed, 3: On-Hold, 4: Dropped, 6: Plan to Watch/Read
+    anilist_to_mal_status_map = {
+        'CURRENT': '1',    # Watching / Reading
+        'COMPLETED': '2',  # Completed
+        'PAUSED': '3',     # On-Hold
+        'DROPPED': '4',    # Dropped
+        'PLANNING': '6',   # Plan to Watch / Plan to Read
+        # AniList REPEATING is like CURRENT but with rewatch counter. For MAL, map to Watching/Reading.
+        'REPEATING': '1'
+    }
     
     formatted_entries = []
     for entry in entries:
         media = entry.get('media', {})
         title = media.get('title', {}).get('romaji', 'N/A Title')
         media_id = media.get('id', 0)
-        score = int(entry.get('score', 0) or 0)
+        
+        raw_score = entry.get('score') # Could be None or 0
+        mal_score = 0 # Default MAL score (no score)
+        if raw_score and raw_score > 0:
+            if raw_score > 10: # Assumed 0-100 system from AniList
+                mal_score = round(raw_score / 10)
+            else: # Assumed 0-10 system from AniList or already converted
+                mal_score = int(raw_score)
+            mal_score = max(0, min(10, mal_score)) # Ensure score is within MAL's 0-10 range
+
         progress = entry.get('progress', 0) or 0
-        rewatched = entry.get('repeat', 0) or 0
-        entry_status_val = entry.get('status', 'PLANNING') 
+        rewatched = entry.get('repeat', 0) or 0 # AniList 'repeat' maps to MAL 'my_times_watched'/'my_times_read'
+        
+        anilist_status = entry.get('status', 'PLANNING') # Default to PLANNING if status is missing
+        mal_status_code = anilist_to_mal_status_map.get(anilist_status, '6') # Default to Plan to Watch/Read
 
         if type == 'anime':
-            status_str = status_map_anime.get(entry_status_val, 'Plan to Watch')
             formatted_entries.append(entry_template_anime.format(
-                media_id=media_id, title=title, score=score, status=status_str, progress=progress, rewatched=rewatched
+                media_id=media_id, title=title, score=mal_score, status=mal_status_code, progress=progress, rewatched=rewatched
             ))
-        else: 
-            status_str = status_map_manga.get(entry_status_val, 'Plan to Read')
+        else: # manga
             progress_volumes = entry.get('progressVolumes', 0) or 0
             formatted_entries.append(entry_template_manga.format(
-                media_id=media_id, title=title, score=score, status=status_str, progress=progress, progress_volumes=progress_volumes, rewatched=rewatched
+                media_id=media_id, title=title, score=mal_score, status=mal_status_code, progress=progress, progress_volumes=progress_volumes, rewatched=rewatched
             ))
             
     xml_footer = "</myanimelist>"
@@ -318,13 +332,9 @@ def create_backup(username):
         backup_id = f"{username}_{timestamp}"
         meta_data = None 
         
-        # Use a temporary staging directory within BACKUP_DIR to prepare files
-        # This avoids polluting BACKUP_DIR if an error occurs mid-process.
-        # The staging dir is specific to this backup operation.
         temp_staging_dir_path = os.path.join(BACKUP_DIR, f"_TEMP_{backup_id}")
         os.makedirs(temp_staging_dir_path, exist_ok=True)
         zip_path_final = os.path.join(BACKUP_DIR, f"{backup_id}.zip")
-
 
         try:
             anime_data_list = []
@@ -365,14 +375,12 @@ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             with open(os.path.join(temp_staging_dir_path, 'meta.json'), 'w', encoding='utf-8') as f:
                 json.dump(meta_data, f, ensure_ascii=False, indent=2)
             
-            # Validate files before zipping
             validate_backup_files(temp_staging_dir_path)
 
             with zipfile.ZipFile(zip_path_final, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 for filename in ['anime.json', 'manga.json', 'animemanga_stats.txt', 'anime.xml', 'manga.xml', 'meta.json']:
                     zipf.write(os.path.join(temp_staging_dir_path, filename), filename)
             
-            # Validate the created zip
             validate_backup_zip(zip_path_final)
 
             save_latest_stats({'anime': anime_stats, 'manga': manga_stats, 'username': username, 'last_updated': meta_data['date']})
@@ -381,11 +389,10 @@ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             return meta_data
 
         except Exception as e_inner:
-            if os.path.exists(zip_path_final): os.remove(zip_path_final) # Remove potentially corrupted zip
+            if os.path.exists(zip_path_final): os.remove(zip_path_final)
             save_log(f"Inner backup process failed for {username}: {str(e_inner)}", False)
-            raise # Re-raise to be caught by the outer try-except
+            raise
         finally:
-            # Always clean up the temporary staging directory
             if os.path.exists(temp_staging_dir_path):
                 shutil.rmtree(temp_staging_dir_path)
             
@@ -394,27 +401,26 @@ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         raise 
 
 def auto_backup_task():
-    global auto_backup_config # Ensure we are using the global config
+    global auto_backup_config
     while not stop_auto_backup.is_set():
         try:
-            if auto_backup_config: # Check if config is loaded
+            if auto_backup_config:
                 username = auto_backup_config.get('username')
                 keep_last = int(auto_backup_config.get('keepLast', 1))
-                interval_hours = float(auto_backup_config.get('interval', 24)) # Default to 24 if missing
+                interval_hours = float(auto_backup_config.get('interval', 24))
 
                 if not username:
                     save_log("Auto backup task: Username missing in config. Stopping task.", False)
-                    stop_auto_backup.set() # Stop if essential config is missing
-                    auto_backup_config = None # Clear invalid config
+                    stop_auto_backup.set() 
+                    auto_backup_config = None 
                     if os.path.exists(CONFIG_FILE): os.remove(CONFIG_FILE)
                     break 
 
                 save_log(f"Auto backup task: Starting backup for {username}.", True)
                 try:
                     create_backup(username)
-                    # Cleanup old backups
-                    with backup_lock: # Ensure thread-safe access if get_user_backups or delete_backup_file modify shared state
-                        backups = get_user_backups(username) # Get backups for the specific user
+                    with backup_lock:
+                        backups = get_user_backups(username)
                         if len(backups) > keep_last:
                             backups_to_delete = sorted(backups, key=lambda x: x['date'])[:-keep_last]
                             for backup_meta in backups_to_delete:
@@ -429,22 +435,22 @@ def auto_backup_task():
                 while elapsed_sleep < sleep_duration_seconds and not stop_auto_backup.is_set():
                     time.sleep(min(sleep_interval_check, sleep_duration_seconds - elapsed_sleep))
                     elapsed_sleep += sleep_interval_check
-            else: # No auto_backup_config
-                if stop_auto_backup.is_set(): break # Exit if stop signal is set
+            else: 
+                if stop_auto_backup.is_set(): break
                 save_log("Auto backup task: No configuration found. Waiting for configuration.", False)
-                time.sleep(300) # Wait longer if no config is set
+                time.sleep(300) 
         except Exception as e:
             save_log(f"Critical error in auto backup loop: {str(e)}", False)
-            time.sleep(60) # Wait a bit before retrying the loop
+            time.sleep(60)
 
 
 def get_user_backups(username_filter=None):
     backups = []
     if not os.path.exists(BACKUP_DIR):
-        return backups # BACKUP_DIR should exist due to earlier makedirs
+        return backups
     try:
         for filename in os.listdir(BACKUP_DIR):
-            if filename.endswith('.zip') and not filename.startswith("_TEMP_"): # Ignore temp zips
+            if filename.endswith('.zip') and not filename.startswith("_TEMP_"):
                 if username_filter and not filename.startswith(f"{username_filter}_"):
                     continue
                 try:
@@ -452,7 +458,6 @@ def get_user_backups(username_filter=None):
                     with zipfile.ZipFile(zip_file_path, 'r') as zipf:
                         if 'meta.json' in zipf.namelist():
                             with zipf.open('meta.json') as f_meta:
-                                # Wrap with TextIOWrapper for correct decoding if needed
                                 backup_data = json.load(io.TextIOWrapper(f_meta, encoding='utf-8'))
                                 backups.append({
                                     'id': backup_data.get('id', filename[:-4]),
@@ -497,7 +502,6 @@ def get_latest_stats_route():
 @app.route('/events')
 def events():
     def event_stream():
-        # sse_queue.put({"type": "sse_connected", "data": "Connection established"}) 
         while True:
             try:
                 message = sse_queue.get(timeout=25)
@@ -518,7 +522,7 @@ def events():
 @app.route('/backup', methods=['POST'])
 def manual_backup_route():
     username = None
-    data = None # Initialize data
+    data = None
     try:
         data = request.get_json()
         if not data or not data.get('username'): 
@@ -536,8 +540,8 @@ def manual_backup_route():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/auto-backup', methods=['POST'])
-def start_auto_backup_route(): # Renamed to avoid conflict
-    global auto_backup_thread, auto_backup_config # Ensure we're modifying the global vars
+def start_auto_backup_route():
+    global auto_backup_thread, auto_backup_config
     try:
         data = request.get_json()
         username = data.get('username')
@@ -561,11 +565,11 @@ def start_auto_backup_route(): # Renamed to avoid conflict
         if auto_backup_thread and auto_backup_thread.is_alive():
             save_log("Stopping existing auto-backup thread before starting new one.", True)
             stop_auto_backup.set()
-            auto_backup_thread.join(timeout=10) # Give it time to stop
+            auto_backup_thread.join(timeout=10)
         
-        stop_auto_backup.clear() # Clear stop signal for the new thread
+        stop_auto_backup.clear()
         auto_backup_config = {'username': username, 'keepLast': keep_last, 'interval': interval}
-        save_config(auto_backup_config) # Save to file for persistence
+        save_config(auto_backup_config)
         
         auto_backup_thread = threading.Thread(target=auto_backup_task, daemon=True)
         auto_backup_thread.start()
@@ -574,11 +578,10 @@ def start_auto_backup_route(): # Renamed to avoid conflict
         return jsonify({'status': 'success', 'message': f'Auto backup started for {username}.', 'config': auto_backup_config})
     except Exception as e:
         save_log(f"Failed to start auto backup: {str(e)}", False)
-        # Attempt to revert state if something went wrong
         auto_backup_config = None 
         stop_auto_backup.set()
         if os.path.exists(CONFIG_FILE):
-            try: os.remove(CONFIG_FILE) # Clear potentially corrupt/incomplete config
+            try: os.remove(CONFIG_FILE)
             except OSError as oe: save_log(f"Error removing config during auto-backup start failure: {str(oe)}", False)
         return jsonify({'error': str(e)}), 500
 
@@ -589,12 +592,12 @@ def stop_auto_backup_route():
         save_log("Attempting to stop auto backup...", True)
         stop_auto_backup.set()
         if auto_backup_thread and auto_backup_thread.is_alive():
-            auto_backup_thread.join(timeout=10) # Give it time to stop
+            auto_backup_thread.join(timeout=10)
         
-        auto_backup_config = None # Clear runtime config
-        auto_backup_thread = None # Clear thread reference
+        auto_backup_config = None
+        auto_backup_thread = None
         
-        if os.path.exists(CONFIG_FILE): # Remove persisted config
+        if os.path.exists(CONFIG_FILE):
             os.remove(CONFIG_FILE)
             save_log("Removed auto backup configuration file.", True)
             
@@ -605,9 +608,8 @@ def stop_auto_backup_route():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/auto-backup-status')
-def get_auto_backup_status_route(): # Renamed
+def get_auto_backup_status_route():
     is_running = bool(auto_backup_thread and auto_backup_thread.is_alive() and not stop_auto_backup.is_set())
-    # If not running, auto_backup_config might be None. load_config() ensures we get persisted state.
     current_config_to_display = auto_backup_config if is_running else load_config()
     return jsonify({'running': is_running, 'config': current_config_to_display})
 
@@ -638,7 +640,7 @@ def get_backup_stats_route(backup_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/backup/<backup_id>/download')
-def download_backup_route(backup_id): # Renamed
+def download_backup_route(backup_id):
     try:
         backup_path = os.path.join(BACKUP_DIR, f"{backup_id}.zip")
         if not os.path.exists(backup_path):
@@ -653,10 +655,8 @@ def delete_backup_route(backup_id):
     try:
         if delete_backup_file(backup_id):
             sse_queue.put({'type': 'backup_deleted', 'data': {'id': backup_id }})
-            # After deleting, latest stats might change if the deleted one was the latest.
-            # Re-evaluate latest stats:
             all_backups = get_user_backups()
-            if all_backups: # If there are remaining backups
+            if all_backups:
                 latest_backup_meta_path = os.path.join(BACKUP_DIR, f"{all_backups[0]['id']}.zip")
                 new_latest_stats = None
                 try:
@@ -673,16 +673,16 @@ def delete_backup_route(backup_id):
                     if new_latest_stats:
                         save_latest_stats(new_latest_stats)
                         sse_queue.put({'type': 'latest_stats_updated', 'data': new_latest_stats})
-                    else: # Fallback if meta couldn't be read from the new latest
+                    else: 
                         if os.path.exists(LATEST_STATS_FILE): os.remove(LATEST_STATS_FILE)
-                        sse_queue.put({'type': 'latest_stats_updated', 'data': {}}) # Clear stats
+                        sse_queue.put({'type': 'latest_stats_updated', 'data': {}})
                 except Exception as e_stat_update:
                     save_log(f"Error updating latest stats after delete: {e_stat_update}", False)
                     if os.path.exists(LATEST_STATS_FILE): os.remove(LATEST_STATS_FILE)
-                    sse_queue.put({'type': 'latest_stats_updated', 'data': {}}) # Clear stats
-            else: # No backups left
+                    sse_queue.put({'type': 'latest_stats_updated', 'data': {}})
+            else: 
                 if os.path.exists(LATEST_STATS_FILE): os.remove(LATEST_STATS_FILE)
-                sse_queue.put({'type': 'latest_stats_updated', 'data': {}}) # Clear stats
+                sse_queue.put({'type': 'latest_stats_updated', 'data': {}})
 
             return jsonify({'status': 'success'})
         return jsonify({'error': 'Backup not found or deletion failed'}), 404
@@ -711,29 +711,28 @@ def save_log_client_route():
         save_log(f"[CLIENT] {data['message']}", data.get('isSuccess', False))
         return jsonify({'status': 'success'})
     except Exception as e:
-        print(f"Error in /save-log route: {str(e)}") # Use print to avoid recursion with save_log
+        print(f"Error in /save-log route: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 def initialize_auto_backup():
-    global auto_backup_thread, auto_backup_config # Crucial to modify globals
+    global auto_backup_thread, auto_backup_config
     
-    loaded_config = load_config() # Load from persisted file
+    loaded_config = load_config()
     if loaded_config:
         save_log(f"Found auto-backup configuration: {loaded_config}", True)
         
-        # Perform thorough validation of the loaded config
         username = loaded_config.get('username')
         try:
-            keep_last = int(loaded_config.get('keepLast', 0)) # Default to 0 if missing/invalid
-            interval = float(loaded_config.get('interval', 0)) # Default to 0 if missing/invalid
+            keep_last = int(loaded_config.get('keepLast', 0))
+            interval = float(loaded_config.get('interval', 0))
         except (ValueError, TypeError):
             keep_last = 0
             interval = 0
             save_log("Invalid numeric values in loaded auto-backup config.", False)
 
         if username and keep_last > 0 and interval > 0:
-            auto_backup_config = loaded_config # Set the global runtime config
-            stop_auto_backup.clear() # Ensure stop signal is cleared
+            auto_backup_config = loaded_config
+            stop_auto_backup.clear()
             
             if auto_backup_thread and auto_backup_thread.is_alive():
                  save_log("Auto backup thread already running (unexpected). Stopping it first.", False)
@@ -745,8 +744,7 @@ def initialize_auto_backup():
             save_log(f"Restored and started auto backup for '{username}' on application start. Interval: {interval}h, Keep: {keep_last}.", True)
         else:
             save_log(f"Loaded auto-backup config for '{username}' is incomplete or invalid (Keep: {keep_last}, Interval: {interval}). Auto-backup not started. Please reconfigure.", False)
-            auto_backup_config = None # Clear invalid runtime config
-            # Optionally remove the invalid config file to prevent re-loading issues
+            auto_backup_config = None
             if os.path.exists(CONFIG_FILE):
                 try:
                     os.remove(CONFIG_FILE)
@@ -755,10 +753,10 @@ def initialize_auto_backup():
                     save_log(f"Error removing invalid config file {CONFIG_FILE}: {str(oe)}", False)
     else:
         save_log("No auto-backup configuration found on application start.", True)
-        auto_backup_config = None # Ensure runtime config is also None
+        auto_backup_config = None
 
 
 if __name__ == '__main__':
     save_log("AniVault application starting up...", True)
-    initialize_auto_backup() # Load config and start auto-backup if configured
+    initialize_auto_backup()
     app.run(debug=False, host='0.0.0.0', port=5000, threaded=True)
