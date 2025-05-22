@@ -13,22 +13,28 @@ import queue
 app = Flask(__name__)
 sse_queue = queue.Queue()
 
-# Global variables
-BACKUP_DIR = "backups"
-LOGS_FILE = "logs.json"
-CONFIG_FILE = "config.json"
-LATEST_STATS_FILE = "latest_stats.json" # For persistent stats
+# --- Configuration for Persistent Data ---
+# These paths are relative to WORKDIR /app in the Docker container.
+# docker-compose.yml will map host directories to these container paths.
+APP_DATA_DIR = "app_data"  # For config, logs, latest_stats
+BACKUP_DIR = "backups"     # For backup ZIP files
+
+# Ensure these directories exist within the container's /app directory
+os.makedirs(APP_DATA_DIR, exist_ok=True)
+os.makedirs(BACKUP_DIR, exist_ok=True)
+
+LOGS_FILE = os.path.join(APP_DATA_DIR, "logs.json")
+CONFIG_FILE = os.path.join(APP_DATA_DIR, "config.json")
+LATEST_STATS_FILE = os.path.join(APP_DATA_DIR, "latest_stats.json")
 MAX_LOGS = 100
+# --- End Configuration ---
 
 # Auto-Backup Configuration
 auto_backup_thread = None
 stop_auto_backup = threading.Event()
-auto_backup_config = None
+auto_backup_config = None # This will be loaded from CONFIG_FILE
 backup_lock = threading.Lock()
 
-# Create directories
-if not os.path.exists(BACKUP_DIR):
-    os.makedirs(BACKUP_DIR)
 
 # GraphQL Query
 ANILIST_QUERY = """
@@ -69,65 +75,70 @@ query ($username: String) {
 }
 """
 
-def validate_backup_files(backup_dir):
-    """
-    Validates that all required files exist and are non-empty in the backup directory
-    """
+def validate_backup_files(backup_dir_path): # backup_dir_path is the temporary staging dir
     required_files = ['anime.json', 'manga.json', 'animemanga_stats.txt', 
                      'anime.xml', 'manga.xml', 'meta.json']
-    
     for filename in required_files:
-        file_path = os.path.join(backup_dir, filename)
+        file_path = os.path.join(backup_dir_path, filename)
         if not os.path.exists(file_path):
             raise ValueError(f"Missing required file: {filename}")
         if os.path.getsize(file_path) == 0:
             raise ValueError(f"Empty file detected: {filename}")
 
 def validate_backup_zip(zip_path):
-    """
-    Validates that a backup ZIP contains all required files and they are non-empty
-    """
     required_files = ['anime.json', 'manga.json', 'animemanga_stats.txt', 
                      'anime.xml', 'manga.xml', 'meta.json']
-    
     with zipfile.ZipFile(zip_path, 'r') as zipf:
         zip_files = zipf.namelist()
         for req_file in required_files:
             matching_files = [f for f in zip_files if f.endswith(req_file)]
             if not matching_files:
                 raise ValueError(f"Missing required file in zip: {req_file}")
-            
             file_info = zipf.getinfo(matching_files[0])
             if file_info.file_size == 0:
                 raise ValueError(f"Empty file in zip: {req_file}")
-                
             if req_file.endswith('.json'):
                 with zipf.open(matching_files[0]) as f:
                     try:
                         data = json.load(f)
-                        if not data:
-                            raise ValueError(f"Empty JSON content in: {req_file}")
+                        if not data: # Check for empty list or dict
+                             raise ValueError(f"Empty JSON content in: {req_file}")
                     except json.JSONDecodeError:
                         raise ValueError(f"Invalid JSON in: {req_file}")
-    
     return True
 
 def load_config():
     try:
         if os.path.exists(CONFIG_FILE):
             with open(CONFIG_FILE, 'r') as f:
-                return json.load(f)
+                config_data = json.load(f)
+                # Basic validation for essential keys
+                if isinstance(config_data, dict) and \
+                   'username' in config_data and \
+                   'keepLast' in config_data and \
+                   'interval' in config_data:
+                    return config_data
+                else:
+                    save_log(f"Config file {CONFIG_FILE} is malformed. Ignoring.", False)
+                    # Optionally, delete the malformed config file
+                    # os.remove(CONFIG_FILE)
+                    return None
+        return None
+    except json.JSONDecodeError:
+        save_log(f"Error decoding JSON from config file {CONFIG_FILE}. Ignoring.", False)
+        # os.remove(CONFIG_FILE) # Or rename to .bak
+        return None
     except Exception as e:
-        # Use a distinct message for this specific log to avoid recursion if save_log calls load_config
-        print(f"Error directly in load_config: {str(e)}") 
-    return None
+        save_log(f"Error loading config from {CONFIG_FILE}: {str(e)}", False)
+        return None
 
-def save_config(config):
+def save_config(config_to_save):
     try:
         with open(CONFIG_FILE, 'w') as f:
-            json.dump(config, f)
+            json.dump(config_to_save, f, indent=2)
+        save_log("Configuration saved successfully.", True)
     except Exception as e:
-        save_log(f"Error saving config: {str(e)}")
+        save_log(f"Error saving config to {CONFIG_FILE}: {str(e)}", False)
 
 def load_latest_stats():
     try:
@@ -135,7 +146,7 @@ def load_latest_stats():
             with open(LATEST_STATS_FILE, 'r') as f:
                 return json.load(f)
     except Exception as e:
-        save_log(f"Error loading latest stats: {str(e)}")
+        save_log(f"Error loading latest stats from {LATEST_STATS_FILE}: {str(e)}", False)
     return None
 
 def save_latest_stats(stats_data):
@@ -143,7 +154,7 @@ def save_latest_stats(stats_data):
         with open(LATEST_STATS_FILE, 'w') as f:
             json.dump(stats_data, f, indent=2)
     except Exception as e:
-        save_log(f"Error saving latest stats: {str(e)}")
+        save_log(f"Error saving latest stats to {LATEST_STATS_FILE}: {str(e)}", False)
 
 def save_log(message, is_success=False):
     log_entry_data = {
@@ -158,24 +169,22 @@ def save_log(message, is_success=False):
                 with open(LOGS_FILE, 'r') as f:
                     logs = json.load(f)
             except json.JSONDecodeError:
-                print(f"Warning: logs.json was corrupted. Starting with empty logs.")
+                print(f"Warning: {LOGS_FILE} was corrupted. Starting with empty logs.")
                 logs = []
             except Exception as e_read:
-                print(f"Error reading logs.json: {e_read}. Starting with empty logs.")
+                print(f"Error reading {LOGS_FILE}: {e_read}. Starting with empty logs.")
                 logs = []
 
         logs.append(log_entry_data)
         logs = logs[-MAX_LOGS:]
         
         with open(LOGS_FILE, 'w') as f:
-            json.dump(logs, f)
+            json.dump(logs, f, indent=2) # Added indent for readability
 
-        # Send SSE event to update logs on the frontend
         sse_queue.put({'type': 'log_updated', 'data': log_entry_data})
             
     except Exception as e:
-        # Fallback to print if saving log or sending SSE fails, to avoid recursion
-        print(f"CRITICAL: Failed to save log entry or send SSE event. Log: {log_entry_data}, Error: {e}")
+        print(f"CRITICAL: Failed to save log entry or send SSE. Log: {log_entry_data}, Error: {e}")
 
 
 def fetch_anilist_data(username):
@@ -188,7 +197,7 @@ def fetch_anilist_data(username):
     if response.status_code == 404:
         raise Exception(f"User '{username}' not found on AniList.")
     if response.status_code != 200:
-        raise Exception(f'Failed to fetch data from Anilist (Status: {response.status_code})')
+        raise Exception(f'Failed to fetch data from AniList (Status: {response.status_code})')
     
     return response.json()
 
@@ -199,7 +208,6 @@ def calculate_stats(data):
     anime_status = { 'watching': 0, 'completed': 0, 'planning': 0, 'dropped': 0, 'on_hold': 0 }
     manga_status = { 'reading': 0, 'completed': 0, 'planning': 0, 'dropped': 0, 'on_hold': 0 }
     
-    # Ensure 'data' and its nested keys exist before trying to access them
     anilist_data_prop = data.get('data', {})
 
     media_list_collection_anime = anilist_data_prop.get('MediaListCollection')
@@ -282,7 +290,7 @@ def generate_mal_xml(entries, type='anime'):
         score = int(entry.get('score', 0) or 0)
         progress = entry.get('progress', 0) or 0
         rewatched = entry.get('repeat', 0) or 0
-        entry_status_val = entry.get('status', 'PLANNING') # Default to PLANNING if status is missing
+        entry_status_val = entry.get('status', 'PLANNING') 
 
         if type == 'anime':
             status_str = status_map_anime.get(entry_status_val, 'Plan to Watch')
@@ -297,11 +305,10 @@ def generate_mal_xml(entries, type='anime'):
             ))
             
     xml_footer = "</myanimelist>"
-    return xml_header + '\n'.join(formatted_entries) + '\n' + xml_footer
+    return xml_header + '\\n'.join(formatted_entries) + '\\n' + xml_footer
 
 def create_backup(username):
-    # Log an attempt at the very beginning, before any potentially failing operations
-    save_log(f"Attempting to create backup for user: {username}", is_success=True) # Mark as success for now, will log failure if it occurs
+    save_log(f"Attempting to create backup for user: {username}", is_success=True)
     try:
         raw_data = fetch_anilist_data(username)
         raw_data['username'] = username 
@@ -311,94 +318,110 @@ def create_backup(username):
         backup_id = f"{username}_{timestamp}"
         meta_data = None 
         
-        with backup_lock:
-            backup_dir_path = os.path.join(BACKUP_DIR, backup_id) # Renamed to avoid conflict
-            os.makedirs(backup_dir_path, exist_ok=True)
-            zip_path = None
+        # Use a temporary staging directory within BACKUP_DIR to prepare files
+        # This avoids polluting BACKUP_DIR if an error occurs mid-process.
+        # The staging dir is specific to this backup operation.
+        temp_staging_dir_path = os.path.join(BACKUP_DIR, f"_TEMP_{backup_id}")
+        os.makedirs(temp_staging_dir_path, exist_ok=True)
+        zip_path_final = os.path.join(BACKUP_DIR, f"{backup_id}.zip")
 
-            try:
-                anime_data_list = []
-                manga_data_list = []
-                
-                anilist_data_prop = raw_data.get('data', {})
-                media_list_collection_anime = anilist_data_prop.get('MediaListCollection')
-                if media_list_collection_anime and media_list_collection_anime.get('lists'):
-                    for list_group in media_list_collection_anime['lists']:
-                        anime_data_list.extend(list_group.get('entries', []))
-                        
-                media_list_collection_manga = anilist_data_prop.get('MediaListCollection2')
-                if media_list_collection_manga and media_list_collection_manga.get('lists'):
-                    for list_group in media_list_collection_manga['lists']:
-                        manga_data_list.extend(list_group.get('entries', []))
 
-                with open(os.path.join(backup_dir_path, 'anime.json'), 'w', encoding='utf-8') as f:
-                    json.dump(anime_data_list, f, ensure_ascii=False, indent=2)
-                with open(os.path.join(backup_dir_path, 'manga.json'), 'w', encoding='utf-8') as f:
-                    json.dump(manga_data_list, f, ensure_ascii=False, indent=2)
+        try:
+            anime_data_list = []
+            manga_data_list = []
+            
+            anilist_data_prop = raw_data.get('data', {})
+            media_list_collection_anime = anilist_data_prop.get('MediaListCollection')
+            if media_list_collection_anime and media_list_collection_anime.get('lists'):
+                for list_group in media_list_collection_anime['lists']:
+                    anime_data_list.extend(list_group.get('entries', []))
+                    
+            media_list_collection_manga = anilist_data_prop.get('MediaListCollection2')
+            if media_list_collection_manga and media_list_collection_manga.get('lists'):
+                for list_group in media_list_collection_manga['lists']:
+                    manga_data_list.extend(list_group.get('entries', []))
 
-                stats_text = f"""Anime & Manga Statistics for {username}
+            with open(os.path.join(temp_staging_dir_path, 'anime.json'), 'w', encoding='utf-8') as f:
+                json.dump(anime_data_list, f, ensure_ascii=False, indent=2)
+            with open(os.path.join(temp_staging_dir_path, 'manga.json'), 'w', encoding='utf-8') as f:
+                json.dump(manga_data_list, f, ensure_ascii=False, indent=2)
+
+            stats_text = f"""Anime & Manga Statistics for {username}
 Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 {json.dumps({'anime': anime_stats, 'manga': manga_stats}, indent=2)}
 """
-                with open(os.path.join(backup_dir_path, 'animemanga_stats.txt'), 'w', encoding='utf-8') as f:
-                    f.write(stats_text)
+            with open(os.path.join(temp_staging_dir_path, 'animemanga_stats.txt'), 'w', encoding='utf-8') as f:
+                f.write(stats_text)
 
-                anime_xml = generate_mal_xml(anime_data_list, 'anime')
-                manga_xml = generate_mal_xml(manga_data_list, 'manga')
-                with open(os.path.join(backup_dir_path, 'anime.xml'), 'w', encoding='utf-8') as f: f.write(anime_xml)
-                with open(os.path.join(backup_dir_path, 'manga.xml'), 'w', encoding='utf-8') as f: f.write(manga_xml)
-                
-                meta_data = {
-                    'id': backup_id, 'date': datetime.now().isoformat(), 'username': username,
-                    'stats': {'anime': anime_stats, 'manga': manga_stats}
-                }
-                with open(os.path.join(backup_dir_path, 'meta.json'), 'w', encoding='utf-8') as f:
-                    json.dump(meta_data, f, ensure_ascii=False, indent=2)
-                    
-                zip_path = os.path.join(BACKUP_DIR, f"{backup_id}.zip")
-                with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                    for filename in ['anime.json', 'manga.json', 'animemanga_stats.txt', 'anime.xml', 'manga.xml', 'meta.json']:
-                        zipf.write(os.path.join(backup_dir_path, filename), filename)
-                
-                shutil.rmtree(backup_dir_path)
-                                
-                save_latest_stats({'anime': anime_stats, 'manga': manga_stats, 'username': username, 'last_updated': meta_data['date']})
-                sse_queue.put({'type': 'backup_created', 'data': {'username': username, 'timestamp': meta_data['date'], 'stats': {'anime': anime_stats, 'manga': manga_stats}}})
-                save_log(f"Successfully created backup for {username}. ID: {backup_id}", True)
-                return meta_data
+            anime_xml = generate_mal_xml(anime_data_list, 'anime')
+            manga_xml = generate_mal_xml(manga_data_list, 'manga')
+            with open(os.path.join(temp_staging_dir_path, 'anime.xml'), 'w', encoding='utf-8') as f: f.write(anime_xml)
+            with open(os.path.join(temp_staging_dir_path, 'manga.xml'), 'w', encoding='utf-8') as f: f.write(manga_xml)
+            
+            meta_data = {
+                'id': backup_id, 'date': datetime.now().isoformat(), 'username': username,
+                'stats': {'anime': anime_stats, 'manga': manga_stats}
+            }
+            with open(os.path.join(temp_staging_dir_path, 'meta.json'), 'w', encoding='utf-8') as f:
+                json.dump(meta_data, f, ensure_ascii=False, indent=2)
+            
+            # Validate files before zipping
+            validate_backup_files(temp_staging_dir_path)
 
-            except Exception as e_inner:
-                if os.path.exists(backup_dir_path): shutil.rmtree(backup_dir_path)
-                if zip_path and os.path.exists(zip_path): os.remove(zip_path)
-                # Log this specific inner failure before re-raising
-                save_log(f"Inner backup process failed for {username}: {str(e_inner)}", False)
-                raise e_inner 
+            with zipfile.ZipFile(zip_path_final, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for filename in ['anime.json', 'manga.json', 'animemanga_stats.txt', 'anime.xml', 'manga.xml', 'meta.json']:
+                    zipf.write(os.path.join(temp_staging_dir_path, filename), filename)
+            
+            # Validate the created zip
+            validate_backup_zip(zip_path_final)
+
+            save_latest_stats({'anime': anime_stats, 'manga': manga_stats, 'username': username, 'last_updated': meta_data['date']})
+            sse_queue.put({'type': 'backup_created', 'data': {'username': username, 'timestamp': meta_data['date'], 'stats': {'anime': anime_stats, 'manga': manga_stats}}})
+            save_log(f"Successfully created backup for {username}. ID: {backup_id}", True)
+            return meta_data
+
+        except Exception as e_inner:
+            if os.path.exists(zip_path_final): os.remove(zip_path_final) # Remove potentially corrupted zip
+            save_log(f"Inner backup process failed for {username}: {str(e_inner)}", False)
+            raise # Re-raise to be caught by the outer try-except
+        finally:
+            # Always clean up the temporary staging directory
+            if os.path.exists(temp_staging_dir_path):
+                shutil.rmtree(temp_staging_dir_path)
             
     except Exception as e:
         save_log(f"Overall backup creation failed for {username}: {str(e)}", False)
-        raise # Re-raise to be caught by the route handler
+        raise 
 
 def auto_backup_task():
-    global auto_backup_config
+    global auto_backup_config # Ensure we are using the global config
     while not stop_auto_backup.is_set():
         try:
-            if auto_backup_config:
+            if auto_backup_config: # Check if config is loaded
                 username = auto_backup_config.get('username')
                 keep_last = int(auto_backup_config.get('keepLast', 1))
-                interval_hours = float(auto_backup_config.get('interval', 1))
-                if username and keep_last > 0:
-                    save_log(f"Auto backup task: Starting backup for {username}.", True)
-                    try:
-                        create_backup(username)
-                        with backup_lock:
-                            backups = get_user_backups(username)
-                            if len(backups) > keep_last:
-                                backups_to_delete = sorted(backups, key=lambda x: x['date'])[:-keep_last]
-                                for backup_meta in backups_to_delete:
-                                    save_log(f"Auto backup: Deleting old backup {backup_meta['id']} for user {username}", True)
-                                    delete_backup_file(backup_meta['id'])
-                    except Exception as backup_error:
-                        save_log(f"Auto backup task error during backup/cleanup for {username}: {str(backup_error)}", False)
+                interval_hours = float(auto_backup_config.get('interval', 24)) # Default to 24 if missing
+
+                if not username:
+                    save_log("Auto backup task: Username missing in config. Stopping task.", False)
+                    stop_auto_backup.set() # Stop if essential config is missing
+                    auto_backup_config = None # Clear invalid config
+                    if os.path.exists(CONFIG_FILE): os.remove(CONFIG_FILE)
+                    break 
+
+                save_log(f"Auto backup task: Starting backup for {username}.", True)
+                try:
+                    create_backup(username)
+                    # Cleanup old backups
+                    with backup_lock: # Ensure thread-safe access if get_user_backups or delete_backup_file modify shared state
+                        backups = get_user_backups(username) # Get backups for the specific user
+                        if len(backups) > keep_last:
+                            backups_to_delete = sorted(backups, key=lambda x: x['date'])[:-keep_last]
+                            for backup_meta in backups_to_delete:
+                                save_log(f"Auto backup: Deleting old backup {backup_meta['id']} for user {username}", True)
+                                delete_backup_file(backup_meta['id'])
+                except Exception as backup_error:
+                    save_log(f"Auto backup task error during backup/cleanup for {username}: {str(backup_error)}", False)
                 
                 sleep_duration_seconds = interval_hours * 3600
                 sleep_interval_check = 60 
@@ -406,27 +429,31 @@ def auto_backup_task():
                 while elapsed_sleep < sleep_duration_seconds and not stop_auto_backup.is_set():
                     time.sleep(min(sleep_interval_check, sleep_duration_seconds - elapsed_sleep))
                     elapsed_sleep += sleep_interval_check
-            else:
-                if stop_auto_backup.is_set(): break
-                time.sleep(5)
+            else: # No auto_backup_config
+                if stop_auto_backup.is_set(): break # Exit if stop signal is set
+                save_log("Auto backup task: No configuration found. Waiting for configuration.", False)
+                time.sleep(300) # Wait longer if no config is set
         except Exception as e:
             save_log(f"Critical error in auto backup loop: {str(e)}", False)
-            time.sleep(60)
+            time.sleep(60) # Wait a bit before retrying the loop
+
 
 def get_user_backups(username_filter=None):
     backups = []
-    if not os.path.exists(BACKUP_DIR): # Ensure backup dir exists
-        return backups
+    if not os.path.exists(BACKUP_DIR):
+        return backups # BACKUP_DIR should exist due to earlier makedirs
     try:
         for filename in os.listdir(BACKUP_DIR):
-            if filename.endswith('.zip'):
+            if filename.endswith('.zip') and not filename.startswith("_TEMP_"): # Ignore temp zips
                 if username_filter and not filename.startswith(f"{username_filter}_"):
                     continue
                 try:
-                    with zipfile.ZipFile(os.path.join(BACKUP_DIR, filename), 'r') as zipf:
+                    zip_file_path = os.path.join(BACKUP_DIR, filename)
+                    with zipfile.ZipFile(zip_file_path, 'r') as zipf:
                         if 'meta.json' in zipf.namelist():
-                            with zipf.open('meta.json') as f:
-                                backup_data = json.load(io.TextIOWrapper(f, encoding='utf-8'))
+                            with zipf.open('meta.json') as f_meta:
+                                # Wrap with TextIOWrapper for correct decoding if needed
+                                backup_data = json.load(io.TextIOWrapper(f_meta, encoding='utf-8'))
                                 backups.append({
                                     'id': backup_data.get('id', filename[:-4]),
                                     'date': backup_data.get('date', 'N/A'),
@@ -435,10 +462,12 @@ def get_user_backups(username_filter=None):
                                 })
                         else:
                             save_log(f"meta.json not found in backup {filename}", False)
+                except (zipfile.BadZipFile, json.JSONDecodeError) as e_zip:
+                    save_log(f"Corrupted backup file {filename} or meta.json: {str(e_zip)}", False)
                 except Exception as e_inner:
                      save_log(f"Error processing backup file {filename}: {str(e_inner)}", False)
     except Exception as e:
-        save_log(f"Error listing user backups: {str(e)}", False)
+        save_log(f"Error listing user backups from {BACKUP_DIR}: {str(e)}", False)
     return sorted(backups, key=lambda x: x['date'], reverse=True)
 
 def delete_backup_file(backup_id):
@@ -462,28 +491,24 @@ def index():
 @app.route('/latest-stats')
 def get_latest_stats_route():
     stats = load_latest_stats()
-    return jsonify(stats if stats else {}) # Return empty object if no stats
+    return jsonify(stats if stats else {})
 
 
 @app.route('/events')
 def events():
     def event_stream():
-        # Immediately send a "connected" or "init" event if needed
         # sse_queue.put({"type": "sse_connected", "data": "Connection established"}) 
         while True:
             try:
-                message = sse_queue.get(timeout=25) # Slightly lower timeout
-                yield f"data: {json.dumps(message)}\n\n"
+                message = sse_queue.get(timeout=25)
+                yield f"data: {json.dumps(message)}\\n\\n"
             except queue.Empty:
-                yield "event: keep-alive\ndata: {}\n\n" # Explicit keep-alive event
+                yield "event: keep-alive\\ndata: {}\\n\\n" 
             except GeneratorExit: 
                 break
             except Exception as e_stream:
-                # Log this error on the server side
-                print(f"Error in SSE event stream: {e_stream}") # Use print to avoid save_log recursion
-                # Optionally, try to inform the client if possible, though the connection might be broken
-                # yield f"event: error\ndata: {json.dumps({'message': 'SSE stream error occurred'})}\n\n"
-                break # Stop this stream on error
+                print(f"Error in SSE event stream: {e_stream}")
+                break 
             
     return Response(stream_with_context(event_stream()),
                    mimetype='text/event-stream',
@@ -491,68 +516,69 @@ def events():
 
 
 @app.route('/backup', methods=['POST'])
-def manual_backup_route(): # Renamed to avoid confusion with function
+def manual_backup_route():
     username = None
+    data = None # Initialize data
     try:
         data = request.get_json()
-        if not data or not data.get('username'): # Check if data itself is None
+        if not data or not data.get('username'): 
             save_log('Manual backup: Username is required, but not provided or data is malformed.', False)
             return jsonify({'error': 'Username is required.'}), 400
         username = data.get('username')
         
-        save_log(f"Manual backup initiated for user: {username}", True) # Log initiation
+        save_log(f"Manual backup initiated for user: {username}", True)
         backup_meta = create_backup(username) 
-        # Success is logged within create_backup, SSE event also sent from there
         return jsonify({'status': 'success', 'message': f'Backup successfully created for {username}.', 'data': backup_meta})
         
     except Exception as e:
-        # Error should have been logged by create_backup or fetch_anilist_data
-        # but we add a route-level log too for clarity.
-        user_str = username if username else data.get('username', 'N/A') if isinstance(data, dict) else 'N/A'
+        user_str = username if username else (data.get('username', 'N/A') if isinstance(data, dict) else 'N/A')
         save_log(f"Manual backup route error for user '{user_str}': {str(e)}", False)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/auto-backup', methods=['POST'])
-def start_auto_backup():
-    global auto_backup_thread, auto_backup_config
+def start_auto_backup_route(): # Renamed to avoid conflict
+    global auto_backup_thread, auto_backup_config # Ensure we're modifying the global vars
     try:
         data = request.get_json()
         username = data.get('username')
-        keep_last = data.get('keepLast')
-        interval = data.get('interval')
-        if not all([username, keep_last, interval]):
+        keep_last_str = data.get('keepLast')
+        interval_str = data.get('interval')
+
+        if not all([username, keep_last_str, interval_str]):
             save_log('Auto-backup start: Missing required fields.', False)
             return jsonify({'error': 'All fields (username, keepLast, interval) are required'}), 400
+        
         try:
-            keep_last = int(keep_last)
-            interval = float(interval)
+            keep_last = int(keep_last_str)
+            interval = float(interval_str)
             if keep_last <= 0 or interval <= 0:
-                save_log(f'Auto-backup start: Invalid keepLast/interval for {username}.', False)
-                return jsonify({'error': 'Keep last and interval must be positive numbers'}), 400
+                save_log(f'Auto-backup start: Invalid keepLast/interval for {username}. Must be > 0.', False)
+                return jsonify({'error': 'Keep last and interval must be positive numbers.'}), 400
         except ValueError:
-            save_log(f'Auto-backup start: Invalid number format for {username}.', False)
-            return jsonify({'error': 'Invalid number format for keepLast or interval'}), 400
+            save_log(f'Auto-backup start: Invalid number format for keepLast/interval for {username}.', False)
+            return jsonify({'error': 'Invalid number format for keepLast or interval.'}), 400
         
         if auto_backup_thread and auto_backup_thread.is_alive():
             save_log("Stopping existing auto-backup thread before starting new one.", True)
             stop_auto_backup.set()
-            auto_backup_thread.join(timeout=5)
+            auto_backup_thread.join(timeout=10) # Give it time to stop
         
-        stop_auto_backup.clear()
+        stop_auto_backup.clear() # Clear stop signal for the new thread
         auto_backup_config = {'username': username, 'keepLast': keep_last, 'interval': interval}
-        save_config(auto_backup_config)
+        save_config(auto_backup_config) # Save to file for persistence
         
         auto_backup_thread = threading.Thread(target=auto_backup_task, daemon=True)
         auto_backup_thread.start()
         
         save_log(f"Auto backup started for {username}, interval: {interval} hours, keep: {keep_last}", True)
-        return jsonify({'status': 'success', 'message': f'Auto backup started for {username}.'})
+        return jsonify({'status': 'success', 'message': f'Auto backup started for {username}.', 'config': auto_backup_config})
     except Exception as e:
         save_log(f"Failed to start auto backup: {str(e)}", False)
-        auto_backup_config = None
+        # Attempt to revert state if something went wrong
+        auto_backup_config = None 
         stop_auto_backup.set()
         if os.path.exists(CONFIG_FILE):
-            try: os.remove(CONFIG_FILE)
+            try: os.remove(CONFIG_FILE) # Clear potentially corrupt/incomplete config
             except OSError as oe: save_log(f"Error removing config during auto-backup start failure: {str(oe)}", False)
         return jsonify({'error': str(e)}), 500
 
@@ -563,27 +589,34 @@ def stop_auto_backup_route():
         save_log("Attempting to stop auto backup...", True)
         stop_auto_backup.set()
         if auto_backup_thread and auto_backup_thread.is_alive():
-            auto_backup_thread.join(timeout=5)
-        auto_backup_config = None
-        auto_backup_thread = None
-        if os.path.exists(CONFIG_FILE): os.remove(CONFIG_FILE)
-        save_log("Auto backup stopped successfully", True)
-        return jsonify({'status': 'success'})
+            auto_backup_thread.join(timeout=10) # Give it time to stop
+        
+        auto_backup_config = None # Clear runtime config
+        auto_backup_thread = None # Clear thread reference
+        
+        if os.path.exists(CONFIG_FILE): # Remove persisted config
+            os.remove(CONFIG_FILE)
+            save_log("Removed auto backup configuration file.", True)
+            
+        save_log("Auto backup stopped successfully.", True)
+        return jsonify({'status': 'success', 'message': 'Auto backup stopped.'})
     except Exception as e:
         save_log(f"Error stopping auto backup: {str(e)}", False)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/auto-backup-status')
-def get_auto_backup_status():
+def get_auto_backup_status_route(): # Renamed
     is_running = bool(auto_backup_thread and auto_backup_thread.is_alive() and not stop_auto_backup.is_set())
-    current_config = auto_backup_config if is_running else load_config()
-    return jsonify({'running': is_running, 'config': current_config})
+    # If not running, auto_backup_config might be None. load_config() ensures we get persisted state.
+    current_config_to_display = auto_backup_config if is_running else load_config()
+    return jsonify({'running': is_running, 'config': current_config_to_display})
+
 
 @app.route('/backups')
 def get_backups_route():
     try:
         all_backups = get_user_backups() 
-        return jsonify(all_backups) # Already sorted by get_user_backups
+        return jsonify(all_backups)
     except Exception as e:
         save_log(f"Error in /backups route: {str(e)}", False)
         return jsonify({'error': str(e)}), 500
@@ -596,8 +629,8 @@ def get_backup_stats_route(backup_id):
             return jsonify({'error': 'Backup not found'}), 404
         with zipfile.ZipFile(zip_path, 'r') as zipf:
             if 'meta.json' in zipf.namelist():
-                with zipf.open('meta.json') as f:
-                    backup_data = json.load(io.TextIOWrapper(f, encoding='utf-8'))
+                with zipf.open('meta.json') as f_meta:
+                    backup_data = json.load(io.TextIOWrapper(f_meta, encoding='utf-8'))
                     return jsonify(backup_data.get('stats', {}))
             return jsonify({'error': 'meta.json not found in backup'}), 404
     except Exception as e:
@@ -605,7 +638,7 @@ def get_backup_stats_route(backup_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/backup/<backup_id>/download')
-def download_backup(backup_id):
+def download_backup_route(backup_id): # Renamed
     try:
         backup_path = os.path.join(BACKUP_DIR, f"{backup_id}.zip")
         if not os.path.exists(backup_path):
@@ -616,16 +649,41 @@ def download_backup(backup_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/backup/<backup_id>', methods=['DELETE'])
-def delete_backup_route(backup_id): # Renamed
+def delete_backup_route(backup_id):
     try:
         if delete_backup_file(backup_id):
-            latest_stats = load_latest_stats()
-            # A bit complex: check if the deleted backup was the one providing latest stats
-            # This assumes 'id' was part of latest_stats, which it isn't directly.
-            # A simpler approach: just fetch the latest available backup's stats if any.
-            # For now, just send an event that it was deleted. The UI can refetch latest if needed.
             sse_queue.put({'type': 'backup_deleted', 'data': {'id': backup_id }})
-            sse_queue.put({'type': 'latest_stats_updated', 'data': load_latest_stats()}) # Force update latest_stats on UI
+            # After deleting, latest stats might change if the deleted one was the latest.
+            # Re-evaluate latest stats:
+            all_backups = get_user_backups()
+            if all_backups: # If there are remaining backups
+                latest_backup_meta_path = os.path.join(BACKUP_DIR, f"{all_backups[0]['id']}.zip")
+                new_latest_stats = None
+                try:
+                    with zipfile.ZipFile(latest_backup_meta_path, 'r') as zipf_latest:
+                        if 'meta.json' in zipf_latest.namelist():
+                            with zipf_latest.open('meta.json') as f_latest_meta:
+                                latest_meta = json.load(io.TextIOWrapper(f_latest_meta, encoding='utf-8'))
+                                new_latest_stats = {
+                                    'anime': latest_meta['stats']['anime'],
+                                    'manga': latest_meta['stats']['manga'],
+                                    'username': latest_meta['username'],
+                                    'last_updated': latest_meta['date']
+                                }
+                    if new_latest_stats:
+                        save_latest_stats(new_latest_stats)
+                        sse_queue.put({'type': 'latest_stats_updated', 'data': new_latest_stats})
+                    else: # Fallback if meta couldn't be read from the new latest
+                        if os.path.exists(LATEST_STATS_FILE): os.remove(LATEST_STATS_FILE)
+                        sse_queue.put({'type': 'latest_stats_updated', 'data': {}}) # Clear stats
+                except Exception as e_stat_update:
+                    save_log(f"Error updating latest stats after delete: {e_stat_update}", False)
+                    if os.path.exists(LATEST_STATS_FILE): os.remove(LATEST_STATS_FILE)
+                    sse_queue.put({'type': 'latest_stats_updated', 'data': {}}) # Clear stats
+            else: # No backups left
+                if os.path.exists(LATEST_STATS_FILE): os.remove(LATEST_STATS_FILE)
+                sse_queue.put({'type': 'latest_stats_updated', 'data': {}}) # Clear stats
+
             return jsonify({'status': 'success'})
         return jsonify({'error': 'Backup not found or deletion failed'}), 404
     except Exception as e:
@@ -633,19 +691,19 @@ def delete_backup_route(backup_id): # Renamed
         return jsonify({'error': str(e)}), 500
 
 @app.route('/logs')
-def get_logs_route(): # Renamed
+def get_logs_route():
     try:
         if os.path.exists(LOGS_FILE):
             with open(LOGS_FILE, 'r') as f:
                 logs_data = json.load(f)
-                return jsonify(logs_data) # Logs are already sorted by append order
+                return jsonify(logs_data)
         return jsonify([])
     except Exception as e:
         save_log(f"Error getting logs: {str(e)}", False)
         return jsonify({'error': f"Error reading logs: {str(e)}"}), 500
 
 @app.route('/save-log', methods=['POST']) 
-def save_log_client_route(): # Renamed
+def save_log_client_route():
     try:
         data = request.get_json()
         if not data or 'message' not in data:
@@ -653,28 +711,54 @@ def save_log_client_route(): # Renamed
         save_log(f"[CLIENT] {data['message']}", data.get('isSuccess', False))
         return jsonify({'status': 'success'})
     except Exception as e:
-        print(f"Error in /save-log route: {str(e)}")
+        print(f"Error in /save-log route: {str(e)}") # Use print to avoid recursion with save_log
         return jsonify({'error': str(e)}), 500
 
-if __name__ == '__main__':
-    # Initial log to confirm application start
-    save_log("Application starting up...", True)
+def initialize_auto_backup():
+    global auto_backup_thread, auto_backup_config # Crucial to modify globals
     
-    saved_config = load_config()
-    if saved_config:
-        auto_backup_config = saved_config 
-        if auto_backup_config.get('username') and auto_backup_config.get('interval') and auto_backup_config.get('keepLast'):
-            stop_auto_backup.clear()
+    loaded_config = load_config() # Load from persisted file
+    if loaded_config:
+        save_log(f"Found auto-backup configuration: {loaded_config}", True)
+        
+        # Perform thorough validation of the loaded config
+        username = loaded_config.get('username')
+        try:
+            keep_last = int(loaded_config.get('keepLast', 0)) # Default to 0 if missing/invalid
+            interval = float(loaded_config.get('interval', 0)) # Default to 0 if missing/invalid
+        except (ValueError, TypeError):
+            keep_last = 0
+            interval = 0
+            save_log("Invalid numeric values in loaded auto-backup config.", False)
+
+        if username and keep_last > 0 and interval > 0:
+            auto_backup_config = loaded_config # Set the global runtime config
+            stop_auto_backup.clear() # Ensure stop signal is cleared
+            
+            if auto_backup_thread and auto_backup_thread.is_alive():
+                 save_log("Auto backup thread already running (unexpected). Stopping it first.", False)
+                 stop_auto_backup.set()
+                 auto_backup_thread.join(timeout=5)
+
             auto_backup_thread = threading.Thread(target=auto_backup_task, daemon=True)
             auto_backup_thread.start()
-            save_log(f"Restored and started auto backup for {saved_config['username']} on application start.", True)
+            save_log(f"Restored and started auto backup for '{username}' on application start. Interval: {interval}h, Keep: {keep_last}.", True)
         else:
-            save_log("Found auto-backup config but critical parameters were missing. Config cleared, not starting auto-backup.", False)
-            auto_backup_config = None 
+            save_log(f"Loaded auto-backup config for '{username}' is incomplete or invalid (Keep: {keep_last}, Interval: {interval}). Auto-backup not started. Please reconfigure.", False)
+            auto_backup_config = None # Clear invalid runtime config
+            # Optionally remove the invalid config file to prevent re-loading issues
             if os.path.exists(CONFIG_FILE):
-                try: os.remove(CONFIG_FILE)
-                except OSError as oe: save_log(f"Error removing incomplete config file: {str(oe)}", False)
-    
-    # Start Flask app
-    # Use threaded=True for SSE with the development server. For production, use a proper WSGI server like Gunicorn.
+                try:
+                    os.remove(CONFIG_FILE)
+                    save_log("Removed invalid/incomplete auto-backup configuration file.", True)
+                except OSError as oe:
+                    save_log(f"Error removing invalid config file {CONFIG_FILE}: {str(oe)}", False)
+    else:
+        save_log("No auto-backup configuration found on application start.", True)
+        auto_backup_config = None # Ensure runtime config is also None
+
+
+if __name__ == '__main__':
+    save_log("AniVault application starting up...", True)
+    initialize_auto_backup() # Load config and start auto-backup if configured
     app.run(debug=False, host='0.0.0.0', port=5000, threaded=True)
