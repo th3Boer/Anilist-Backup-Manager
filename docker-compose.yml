@@ -1,9 +1,10 @@
 services:
-  anilist-vault:
+  anivault: 
     container_name: anivault
-    image: ghcr.io/th3boer/anilist-backup-manager:latest
+    image: ghcr.io/th3boer/anilist-backup-manager:latest # Consider renaming your image to ghcr.io/th3boer/anivault:latest
     ports:
       - "5000:5000"
     volumes:
-      - /data/docker/container/anilist-vault/backups:/app/backups
+      - ./anivault_data/backups:/app/backups      # For backup ZIP files
+      - ./anivault_data/appdata:/app/app_data  # For config, logs, latest_stats
     restart: unless-stopped
