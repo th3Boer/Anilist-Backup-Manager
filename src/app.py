@@ -14,12 +14,9 @@ app = Flask(__name__)
 sse_queue = queue.Queue()
 
 # --- Configuration for Persistent Data ---
-# These paths are relative to WORKDIR /app in the Docker container.
-# docker-compose.yml will map host directories to these container paths.
-APP_DATA_DIR = "app_data"  # For config, logs, latest_stats
-BACKUP_DIR = "backups"     # For backup ZIP files
+APP_DATA_DIR = "app_data"
+BACKUP_DIR = "backups"
 
-# Ensure these directories exist within the container's /app directory
 os.makedirs(APP_DATA_DIR, exist_ok=True)
 os.makedirs(BACKUP_DIR, exist_ok=True)
 
@@ -29,53 +26,78 @@ LATEST_STATS_FILE = os.path.join(APP_DATA_DIR, "latest_stats.json")
 MAX_LOGS = 100
 # --- End Configuration ---
 
-# Auto-Backup Configuration
 auto_backup_thread = None
 stop_auto_backup = threading.Event()
-auto_backup_config = None # This will be loaded from CONFIG_FILE
+auto_backup_config = None
 backup_lock = threading.Lock()
 
-
-# GraphQL Query
 ANILIST_QUERY = """
 query ($username: String) {
     MediaListCollection(userName: $username, type: ANIME) {
         lists {
+            name # Include list name for context if needed, though not directly used in MAL XML entry
             entries {
+                mediaId # AniList media ID, often matches MAL ID but not always
+                status # e.g., CURRENT, COMPLETED, PLANNING
+                score # User's raw score
+                progress # episodes watched
+                repeat # rewatch count
+                # startedAt { year month day } # Can be used for my_start_date
+                # completedAt { year month day } # Can be used for my_finish_date
                 media {
-                    id # This is series_animedb_id
+                    id # AniList internal ID, can be different from mediaId used for MAL
                     title {
                         romaji
+                        english # Useful for matching if romaji fails
+                        native
                     }
+                    episodes # Total episodes for the series
+                    chapters # Total chapters for manga
+                    volumes # Total volumes for manga
+                    type # ANIME or MANGA (redundant here but good practice)
+                    format # TV, MOVIE, OVA etc. - useful for series_type
+                    status # AIRING, FINISHED etc. - useful for series_status
+                    # season # e.g. WINTER
+                    # seasonYear # e.g. 2023
+                    # averageScore # Average score on AniList, not user's score
+                    # siteUrl # Link to AniList page
                 }
-                score # User's raw score
-                progress
-                status
-                repeat # For my_times_watched
             }
         }
     }
     MediaListCollection2: MediaListCollection(userName: $username, type: MANGA) {
         lists {
+            name
             entries {
+                mediaId
+                status
+                score
+                progress # chapters read
+                progressVolumes # volumes read
+                repeat
+                # startedAt { year month day }
+                # completedAt { year month day }
                 media {
-                    id # This is series_mangadb_id
+                    id
                     title {
                         romaji
+                        english
+                        native
                     }
+                    chapters
+                    volumes
+                    type
+                    format
+                    status
+                    # siteUrl
                 }
-                score # User's raw score
-                progress # For my_read_chapters
-                progressVolumes # For my_read_volumes
-                status
-                repeat # For my_times_read
             }
         }
     }
 }
 """
 
-def validate_backup_files(backup_dir_path): # backup_dir_path is the temporary staging dir
+def validate_backup_files(backup_dir_path):
     required_files = ['anime.json', 'manga.json', 'animemanga_stats.txt', 
                      'anime.xml', 'manga.xml', 'meta.json']
     for filename in required_files:
@@ -101,7 +123,7 @@ def validate_backup_zip(zip_path):
                 with zipf.open(matching_files[0]) as f:
                     try:
                         data = json.load(f)
-                        if not data: # Check for empty list or dict
+                        if not data:
                              raise ValueError(f"Empty JSON content in: {req_file}")
                     except json.JSONDecodeError:
                         raise ValueError(f"Invalid JSON in: {req_file}")
@@ -112,7 +134,6 @@ def load_config():
         if os.path.exists(CONFIG_FILE):
             with open(CONFIG_FILE, 'r') as f:
                 config_data = json.load(f)
-                # Basic validation for essential keys
                 if isinstance(config_data, dict) and \
                    'username' in config_data and \
                    'keepLast' in config_data and \
@@ -183,11 +204,60 @@ def save_log(message, is_success=False):
     except Exception as e:
         print(f"CRITICAL: Failed to save log entry or send SSE. Log: {log_entry_data}, Error: {e}")
 
-
 def fetch_anilist_data(username):
     url = 'https://graphql.anilist.co'
+    # Using a more comprehensive query to get series_type and series_episodes for MAL XML
+    # Note: AniList `mediaId` is generally what MAL uses as `series_animedb_id` or `series_mangadb_id`.
+    # AniList `media.id` is AniList's internal ID and might not match MAL.
+    # We will prioritize media.mediaId from the entry for MAL ID.
+    detailed_query = """
+    query ($username: String) {
+      MediaListCollection(userName: $username, type: ANIME) {
+        lists {
+          entries {
+            mediaId # This is typically the MAL ID
+            status
+            score
+            progress
+            repeat
+            # startedAt { year month day } # Optional: for my_start_date
+            # completedAt { year month day } # Optional: for my_finish_date
+            media {
+              title { romaji english native }
+              type # ANIME
+              format # TV, MOVIE, OVA, ONA, SPECIAL, MUSIC
+              episodes # Total episodes
+              status # FINISHED_AIRING, RELEASING, NOT_YET_RELEASED, CANCELLED, HIATUS
+            }
+          }
+        }
+      }
+      MediaListCollection2: MediaListCollection(userName: $username, type: MANGA) {
+        lists {
+          entries {
+            mediaId # This is typically the MAL ID
+            status
+            score
+            progress # chapters read
+            progressVolumes # volumes read
+            repeat
+            # startedAt { year month day }
+            # completedAt { year month day }
+            media {
+              title { romaji english native }
+              type # MANGA
+              format # MANGA, NOVEL, ONE_SHOT, DOUJINSHI, MANHWA, MANHUA, OEL
+              chapters # Total chapters
+              volumes # Total volumes
+              status # FINISHED, RELEASING, NOT_YET_RELEASED, CANCELLED, HIATUS
+            }
+          }
+        }
+      }
+    }
+    """
     response = requests.post(url, json={
-        'query': ANILIST_QUERY,
+        'query': detailed_query, # Use the more detailed query
         'variables': {'username': username}
     })
     
@@ -197,6 +267,7 @@ def fetch_anilist_data(username):
         raise Exception(f'Failed to fetch data from AniList (Status: {response.status_code})')
     
     return response.json()
+
 
 def calculate_stats(data):
     anime_entries = []
@@ -215,6 +286,7 @@ def calculate_stats(data):
                 status_key = (entry.get('status', '') or '').lower()
                 if status_key == "current": status_key = "watching"
                 if status_key == "paused": status_key = "on_hold"
+                if status_key == "repeating": status_key = "watching" # Treat repeating as watching for stats
                 if status_key in anime_status:
                     anime_status[status_key] += 1
     
@@ -226,6 +298,7 @@ def calculate_stats(data):
                 status_key = (entry.get('status', '') or '').lower()
                 if status_key == "current": status_key = "reading"
                 if status_key == "paused": status_key = "on_hold"
+                if status_key == "repeating": status_key = "reading" # Treat repeating as reading for stats
                 if status_key in manga_status:
                     manga_status[status_key] += 1
     
@@ -251,80 +324,148 @@ def calculate_stats(data):
     
     return anime_stats, manga_stats
 
-def generate_mal_xml(entries, type='anime'):
-    xml_header = """<?xml version="1.0" encoding="UTF-8" ?>
-<myanimelist>
-"""
-    entry_template_anime = """  <anime>
-    <series_animedb_id>{media_id}</series_animedb_id>
-    <series_title><![CDATA[{title}]]></series_title>
-    <my_watched_episodes>{progress}</my_watched_episodes>
-    <my_score>{score}</my_score>
-    <my_status>{status}</my_status>
-    <my_times_watched>{rewatched}</my_times_watched>
-    <update_on_import>1</update_on_import>
-  </anime>
-"""
-    entry_template_manga = """  <manga>
-    <series_mangadb_id>{media_id}</series_mangadb_id>
-    <series_title><![CDATA[{title}]]></series_title>
-    <my_read_chapters>{progress}</my_read_chapters>
-    <my_read_volumes>{progress_volumes}</my_read_volumes>
-    <my_score>{score}</my_score>
-    <my_status>{status}</my_status>
-    <my_times_read>{rewatched}</my_times_read>
-    <update_on_import>1</update_on_import>
-  </manga>
-"""
-    # MAL numeric status codes: 1: Watching/Reading, 2: Completed, 3: On-Hold, 4: Dropped, 6: Plan to Watch/Read
+def generate_mal_xml(entries, media_type='anime'):
+    # Correct mapping from AniList status to MAL numeric status codes
     anilist_to_mal_status_map = {
         'CURRENT': '1',    # Watching / Reading
         'COMPLETED': '2',  # Completed
-        'PAUSED': '3',     # On-Hold
+        'PAUSED': '3',     # On-Hold (MAL uses 3 for On-Hold)
         'DROPPED': '4',    # Dropped
         'PLANNING': '6',   # Plan to Watch / Plan to Read
-        # AniList REPEATING is like CURRENT but with rewatch counter. For MAL, map to Watching/Reading.
-        'REPEATING': '1'
+        'REPEATING': '1'   # Treat AniList's REPEATING as Watching/Reading for MAL
     }
-    
-    formatted_entries = []
+
+    # MAL series type mapping from AniList format
+    # MAL types: TV, OVA, Movie, Special, ONA, Music
+    anilist_format_to_mal_type = {
+        'TV': 'TV', 'TV_SHORT': 'TV',
+        'MOVIE': 'Movie',
+        'SPECIAL': 'Special',
+        'OVA': 'OVA',
+        'ONA': 'ONA',
+        'MUSIC': 'Music',
+        # Manga specific (less critical for MAL anime import but good for consistency)
+        'MANGA': 'Manga', 'NOVEL': 'Novel', 'ONE_SHOT': 'One-shot' 
+    }
+
+    xml_content = ["""<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ Created by AniVault (AniList Backup Manager)
+-->
+<myanimelist>
+  <myinfo>
+    <!-- User info can be added here if available, but not strictly necessary for list import -->
+    <!-- <user_id></user_id> -->
+    <!-- <user_name></user_name> -->
+    <!-- <user_export_type>{1 for anime, 2 for manga}</user_export_type> -->
+  </myinfo>
+"""]
+
     for entry in entries:
-        media = entry.get('media', {})
-        title = media.get('title', {}).get('romaji', 'N/A Title')
-        media_id = media.get('id', 0)
+        media_data = entry.get('media', {})
         
-        raw_score = entry.get('score') # Could be None or 0
-        mal_score = 0 # Default MAL score (no score)
+        # Use mediaId from entry directly as it's usually the MAL ID
+        series_db_id = entry.get('mediaId', 0)
+        if not series_db_id: # Fallback or skip if no ID
+            save_log(f"Skipping entry, missing mediaId: {media_data.get('title', {}).get('romaji', 'N/A')}", False)
+            continue
+
+        title = media_data.get('title', {}).get('romaji')
+        if not title: # Fallback to English or Native if Romaji is missing
+            title = media_data.get('title', {}).get('english') or media_data.get('title', {}).get('native', 'N/A Title')
+        title_cdata = f"<![CDATA[{title}]]>"
+
+        # Series Type and Episodes/Chapters/Volumes (from media object)
+        series_type_anilist = media_data.get('format', 'TV' if media_type == 'anime' else 'Manga') # Default if not present
+        series_type_mal = anilist_format_to_mal_type.get(str(series_type_anilist).upper(), 'TV' if media_type == 'anime' else 'Manga')
+        
+        series_episodes = media_data.get('episodes', 0) or 0
+        series_chapters = media_data.get('chapters', 0) or 0
+        series_volumes = media_data.get('volumes', 0) or 0
+
+        # User's progress and score
+        my_watched_episodes = entry.get('progress', 0) or 0
+        my_read_chapters = entry.get('progress', 0) or 0
+        my_read_volumes = entry.get('progressVolumes', 0) or 0
+        
+        raw_score = entry.get('score')
+        my_score = 0
         if raw_score and raw_score > 0:
-            if raw_score > 10: # Assumed 0-100 system from AniList
-                mal_score = round(raw_score / 10)
-            else: # Assumed 0-10 system from AniList or already converted
-                mal_score = int(raw_score)
-            mal_score = max(0, min(10, mal_score)) # Ensure score is within MAL's 0-10 range
+            mal_score_float = float(raw_score)
+            if mal_score_float > 10: # Assuming 0-100, 0-10 point etc. from AniList
+                my_score = round(mal_score_float / 10.0)
+            else: # Assuming 0-10 scale
+                my_score = round(mal_score_float)
+            my_score = max(0, min(10, int(my_score))) # Clamp to 0-10
 
-        progress = entry.get('progress', 0) or 0
-        rewatched = entry.get('repeat', 0) or 0 # AniList 'repeat' maps to MAL 'my_times_watched'/'my_times_read'
-        
-        anilist_status = entry.get('status', 'PLANNING') # Default to PLANNING if status is missing
-        mal_status_code = anilist_to_mal_status_map.get(anilist_status, '6') # Default to Plan to Watch/Read
+        # Status
+        anilist_status = entry.get('status', 'PLANNING')
+        my_status_code = anilist_to_mal_status_map.get(str(anilist_status).upper(), '6') # Default to 'Plan to Watch/Read'
 
-        if type == 'anime':
-            formatted_entries.append(entry_template_anime.format(
-                media_id=media_id, title=title, score=mal_score, status=mal_status_code, progress=progress, rewatched=rewatched
-            ))
+        my_times_watched_or_read = entry.get('repeat', 0) or 0
+
+        # Optional date fields - MAL expects YYYY-MM-DD or 0000-00-00
+        # my_start_date = "0000-00-00"
+        # my_finish_date = "0000-00-00"
+        # started_at = entry.get('startedAt')
+        # if started_at and all(started_at.get(k) for k in ['year', 'month', 'day']):
+        #     my_start_date = f"{started_at['year']}-{str(started_at['month']).zfill(2)}-{str(started_at['day']).zfill(2)}"
+        # completed_at = entry.get('completedAt')
+        # if completed_at and all(completed_at.get(k) for k in ['year', 'month', 'day']):
+        #     my_finish_date = f"{completed_at['year']}-{str(completed_at['month']).zfill(2)}-{str(completed_at['day']).zfill(2)}"
+
+
+        xml_tags = []
+        if media_type == 'anime':
+            xml_tags.append(f"    <series_animedb_id>{series_db_id}</series_animedb_id>")
+            xml_tags.append(f"    <series_title>{title_cdata}</series_title>")
+            xml_tags.append(f"    <series_type>{series_type_mal}</series_type>")
+            xml_tags.append(f"    <series_episodes>{series_episodes}</series_episodes>")
+            xml_tags.append(f"    <my_watched_episodes>{my_watched_episodes}</my_watched_episodes>")
+            # xml_tags.append(f"    <my_start_date>{my_start_date}</my_start_date>") # Optional
+            # xml_tags.append(f"    <my_finish_date>{my_finish_date}</my_finish_date>") # Optional
+            xml_tags.append(f"    <my_score>{my_score}</my_score>")
+            xml_tags.append(f"    <my_status>{my_status_code}</my_status>") # Use numeric code
+            xml_tags.append(f"    <my_times_watched>{my_times_watched_or_read}</my_times_watched>")
+            xml_tags.append(f"    <update_on_import>1</update_on_import>") # CRITICAL for updating existing entries
+            # Add other optional fields as empty or default if needed by MAL strict import
+            xml_tags.append(f"    <my_rated></my_rated>")
+            xml_tags.append(f"    <my_rewatching_ep>0</my_rewatching_ep>")
+            xml_tags.append(f"    <my_rewatch_value></my_rewatch_value>") # e.g. Low, Medium, High if you have it
+            xml_tags.append(f"    <my_tags><![CDATA[]]></my_tags>") # User tags
+            xml_tags.append(f"    <my_comments><![CDATA[]]></my_comments>")
+
+            xml_content.append("  <anime>\n" + "\n".join(xml_tags) + "\n  </anime>")
+
         else: # manga
-            progress_volumes = entry.get('progressVolumes', 0) or 0
-            formatted_entries.append(entry_template_manga.format(
-                media_id=media_id, title=title, score=mal_score, status=mal_status_code, progress=progress, progress_volumes=progress_volumes, rewatched=rewatched
-            ))
+            xml_tags.append(f"    <series_mangadb_id>{series_db_id}</series_mangadb_id>")
+            xml_tags.append(f"    <series_title>{title_cdata}</series_title>")
+            xml_tags.append(f"    <series_type>{series_type_mal}</series_type>") # e.g. Manga, Novel
+            xml_tags.append(f"    <series_chapters>{series_chapters}</series_chapters>")
+            xml_tags.append(f"    <series_volumes>{series_volumes}</series_volumes>")
+            xml_tags.append(f"    <my_read_chapters>{my_read_chapters}</my_read_chapters>")
+            xml_tags.append(f"    <my_read_volumes>{my_read_volumes}</my_read_volumes>")
+            # xml_tags.append(f"    <my_start_date>{my_start_date}</my_start_date>")
+            # xml_tags.append(f"    <my_finish_date>{my_finish_date}</my_finish_date>")
+            xml_tags.append(f"    <my_score>{my_score}</my_score>")
+            xml_tags.append(f"    <my_status>{my_status_code}</my_status>") # Use numeric code
+            xml_tags.append(f"    <my_times_read>{my_times_watched_or_read}</my_times_read>")
+            xml_tags.append(f"    <update_on_import>1</update_on_import>")
+            xml_tags.append(f"    <my_rereading_chap>0</my_rereading_chap>")
+            xml_tags.append(f"    <my_reread_value></my_reread_value>")
+            xml_tags.append(f"    <my_tags><![CDATA[]]></my_tags>")
+            xml_tags.append(f"    <my_comments><![CDATA[]]></my_comments>")
             
-    xml_footer = "</myanimelist>"
-    return xml_header + '\\n'.join(formatted_entries) + '\\n' + xml_footer
+            xml_content.append("  <manga>\n" + "\n".join(xml_tags) + "\n  </manga>")
+
+    xml_content.append("</myanimelist>")
+    return "\n".join(xml_content)
+
 
 def create_backup(username):
     save_log(f"Attempting to create backup for user: {username}", is_success=True)
     try:
-        raw_data = fetch_anilist_data(username)
+        raw_data = fetch_anilist_data(username) # Uses detailed query now
         raw_data['username'] = username 
         anime_stats, manga_stats = calculate_stats(raw_data)
         
