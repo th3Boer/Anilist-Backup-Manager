@@ -1,6 +1,6 @@
-# Anilist Backup Manager (AniList Vault) 🛡️💾
+# AniVault (Anilist Backup Manager) 🛡️💾
 
-Easily create and manage backups of your AniList.co anime and manga lists with AniList Vault! This web-based tool allows you to perform manual or automatic backups, storing detailed statistics like total entries, time watched, mean scores, and more.
+Easily create and manage backups of your AniList.co anime and manga lists with AniVault! This web-based tool allows you to perform manual or automatic backups, storing detailed statistics like total entries, time watched, mean scores, and more.
 
 # IMPORTANT: Your AniList Profile needs to be public.
 
