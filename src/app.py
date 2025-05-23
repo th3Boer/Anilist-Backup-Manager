@@ -275,8 +275,7 @@ def format_date_for_mal(date_obj):
 
 def generate_mal_xml(entries, media_type='anime', anilist_username=""):
     # --- Status Mapping ---
-    # For <my_status> tag, we will use MAL's textual representation as seen in their exports
-    # which seems to be more robust for their import system than purely numeric codes sometimes.
+    # For <my_status> tag, use MAL's textual representation.
     anilist_to_mal_text_status_map = {
         'CURRENT': 'Watching' if media_type == 'anime' else 'Reading',
         'COMPLETED': 'Completed',
@@ -285,10 +284,15 @@ def generate_mal_xml(entries, media_type='anime', anilist_username=""):
         'PLANNING': 'Plan to Watch' if media_type == 'anime' else 'Plan to Read',
         'REPEATING': 'Watching' if media_type == 'anime' else 'Reading' 
     }
-    # For <myinfo> block, MAL expects numeric counts for each status category.
-    anilist_to_mal_numeric_status_map = {
-        'CURRENT': '1', 'COMPLETED': '2', 'PAUSED': '3',
-        'DROPPED': '4', 'PLANNING': '6', 'REPEATING': '1'
+    # For <myinfo> block counts, MAL API expects numeric status codes for its own internal summing.
+    # This mapping is only for the <myinfo> block counts.
+    anilist_to_mal_numeric_status_for_myinfo_map = {
+        'CURRENT': '1', 
+        'COMPLETED': '2', 
+        'PAUSED': '3', # MAL On-Hold code
+        'DROPPED': '4', 
+        'PLANNING': '6', 
+        'REPEATING': '1' 
     }
 
     anilist_format_to_mal_type = {
@@ -299,11 +303,12 @@ def generate_mal_xml(entries, media_type='anime', anilist_username=""):
         'OEL': 'OEL'
     }
     export_type_code = 1 if media_type == 'anime' else 2
-
-    total_media_for_myinfo = 0
-    status_counts_for_myinfo = {'1': 0, '2': 0, '3': 0, '4': 0, '6': 0} # Numeric keys
     
     processed_entries_xml_parts = []
+    # For myinfo, we need to count based on the status that will be *written* to the item tags if we want to be precise.
+    # Or, more simply, count based on the numeric mapping for MAL's internal categories.
+    myinfo_status_counts_numeric = {'1': 0, '2': 0, '3': 0, '4': 0, '6': 0} 
+    actual_entries_written = 0
 
     for entry in entries:
         media_data = entry.get('media', {})
@@ -313,17 +318,23 @@ def generate_mal_xml(entries, media_type='anime', anilist_username=""):
             series_db_id = entry.get('mediaId') 
             if not series_db_id or int(series_db_id) == 0:
                 title_for_log = media_data.get('title', {}).get('romaji', 'N/A')
-                save_log(f"Skipping entry for MAL XML: Missing valid MAL ID. Title: {title_for_log}", False)
+                save_log(f"Skipping entry for MAL XML: Missing valid MAL ID for '{title_for_log}'. AniList mediaId: {entry.get('mediaId')}, AniList media.idMal: {media_data.get('idMal')}", False)
                 continue
-
-        # This entry will be included, so count it for myinfo
-        total_media_for_myinfo += 1
-        anilist_status_val_for_myinfo = entry.get('status', 'PLANNING')
-        mal_numeric_status_code = anilist_to_mal_numeric_status_map.get(str(anilist_status_val_for_myinfo).upper(), '6')
-        if mal_numeric_status_code in status_counts_for_myinfo:
-            status_counts_for_myinfo[mal_numeric_status_code] += 1
         
-        # --- For the individual <anime>/<manga> entry ---
+        actual_entries_written += 1 # Count this entry as it has a valid ID
+
+        # Determine status for myinfo block (numeric)
+        anilist_status_raw = entry.get('status', 'PLANNING')
+        numeric_mal_status_for_myinfo = anilist_to_mal_numeric_status_for_myinfo_map.get(str(anilist_status_raw).upper(), '6')
+        if numeric_mal_status_for_myinfo in myinfo_status_counts_numeric:
+            myinfo_status_counts_numeric[numeric_mal_status_for_myinfo] += 1
+        
+        # Determine status for the individual item tag (textual)
+        my_status_text = anilist_to_mal_text_status_map.get(
+            str(anilist_status_raw).upper(), 
+            'Plan to Watch' if media_type == 'anime' else 'Plan to Read'
+        )
+
         title_romaji = media_data.get('title', {}).get('romaji', '')
         title_english = media_data.get('title', {}).get('english', '')
         title_native = media_data.get('title', {}).get('native', '')
@@ -350,11 +361,6 @@ def generate_mal_xml(entries, media_type='anime', anilist_username=""):
                     else: my_score = round(score_float)
                     my_score = max(0, min(10, int(my_score)))
             except ValueError: my_score = 0
-        
-        # Use textual status for the entry itself, as per MAL export observation
-        anilist_status_val_for_entry = entry.get('status', 'PLANNING')
-        my_status_text = anilist_to_mal_text_status_map.get(str(anilist_status_val_for_entry).upper(), 
-                                                            'Plan to Watch' if media_type == 'anime' else 'Plan to Read')
         
         my_times_repeated = entry.get('repeat', 0) or 0
         my_start_date_str = format_date_for_mal(entry.get('startedAt'))
@@ -388,10 +394,10 @@ def generate_mal_xml(entries, media_type='anime', anilist_username=""):
         item_tags_list.append(f"    <my_score>{my_score}</my_score>")
         item_tags_list.append(f"    <my_storage></my_storage>")
         item_tags_list.append(f"    <my_storage_value>0.00</my_storage_value>")
-        item_tags_list.append(f"    <my_status>{my_status_text}</my_status>") # Using text status here
+        item_tags_list.append(f"    <my_status>{my_status_text}</my_status>") # Textual status
         item_tags_list.append(f"    <my_comments><![CDATA[]]></my_comments>")
         item_tags_list.append(f"    <my_rewatch_value></my_rewatch_value>")
-        item_tags_list.append(f"    <my_priority>LOW</my_priority>")
+        item_tags_list.append(f"    <my_priority>LOW</my_priority>") 
         item_tags_list.append(f"    <my_tags><![CDATA[]]></my_tags>")
         item_tags_list.append(f"    <my_discuss>1</my_discuss>")
         item_tags_list.append(f"    <my_sns>default</my_sns>")
@@ -399,7 +405,7 @@ def generate_mal_xml(entries, media_type='anime', anilist_username=""):
 
         processed_entries_xml_parts.append(f"  <{item_tag_name}>\n" + "\n".join(item_tags_list) + f"\n  </{item_tag_name}>")
 
-    # Construct myinfo_block with final total_media_for_myinfo
+    # Construct myinfo_block with final counts
     myinfo_lines = [
         "  <myinfo>",
         f"    <user_id></user_id>",
@@ -408,21 +414,21 @@ def generate_mal_xml(entries, media_type='anime', anilist_username=""):
     ]
     if media_type == 'anime':
         myinfo_lines.extend([
-            f"    <user_total_anime>{total_media_for_myinfo}</user_total_anime>",
-            f"    <user_total_watching>{status_counts_for_myinfo.get('1',0)}</user_total_watching>",
-            f"    <user_total_completed>{status_counts_for_myinfo.get('2',0)}</user_total_completed>",
-            f"    <user_total_onhold>{status_counts_for_myinfo.get('3',0)}</user_total_onhold>",
-            f"    <user_total_dropped>{status_counts_for_myinfo.get('4',0)}</user_total_dropped>",
-            f"    <user_total_plantowatch>{status_counts_for_myinfo.get('6',0)}</user_total_plantowatch>"
+            f"    <user_total_anime>{actual_entries_written}</user_total_anime>",
+            f"    <user_total_watching>{myinfo_status_counts_numeric.get('1',0)}</user_total_watching>",
+            f"    <user_total_completed>{myinfo_status_counts_numeric.get('2',0)}</user_total_completed>",
+            f"    <user_total_onhold>{myinfo_status_counts_numeric.get('3',0)}</user_total_onhold>",
+            f"    <user_total_dropped>{myinfo_status_counts_numeric.get('4',0)}</user_total_dropped>",
+            f"    <user_total_plantowatch>{myinfo_status_counts_numeric.get('6',0)}</user_total_plantowatch>"
         ])
     else:
         myinfo_lines.extend([
-            f"    <user_total_manga>{total_media_for_myinfo}</user_total_manga>",
-            f"    <user_total_reading>{status_counts_for_myinfo.get('1',0)}</user_total_reading>",
-            f"    <user_total_completed>{status_counts_for_myinfo.get('2',0)}</user_total_completed>",
-            f"    <user_total_onhold>{status_counts_for_myinfo.get('3',0)}</user_total_onhold>",
-            f"    <user_total_dropped>{status_counts_for_myinfo.get('4',0)}</user_total_dropped>",
-            f"    <user_total_plantoread>{status_counts_for_myinfo.get('6',0)}</user_total_plantoread>"
+            f"    <user_total_manga>{actual_entries_written}</user_total_manga>",
+            f"    <user_total_reading>{myinfo_status_counts_numeric.get('1',0)}</user_total_reading>",
+            f"    <user_total_completed>{myinfo_status_counts_numeric.get('2',0)}</user_total_completed>",
+            f"    <user_total_onhold>{myinfo_status_counts_numeric.get('3',0)}</user_total_onhold>",
+            f"    <user_total_dropped>{myinfo_status_counts_numeric.get('4',0)}</user_total_dropped>",
+            f"    <user_total_plantoread>{myinfo_status_counts_numeric.get('6',0)}</user_total_plantoread>"
         ])
     myinfo_lines.append("  </myinfo>")
 
