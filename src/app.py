@@ -31,13 +31,14 @@ stop_auto_backup = threading.Event()
 auto_backup_config = None
 backup_lock = threading.Lock()
 
+# Updated ANILIST_QUERY to fetch idMal and other relevant media details
 ANILIST_QUERY = """
 query ($username: String) {
     MediaListCollection(userName: $username, type: ANIME) {
         lists {
             name 
             entries {
-                mediaId 
+                mediaId # AniList's general media ID, can sometimes be MAL ID
                 status 
                 score 
                 progress 
@@ -45,12 +46,15 @@ query ($username: String) {
                 startedAt { year month day } 
                 completedAt { year month day } 
                 media {
-                    id 
+                    idMal # Explicitly request MAL ID
+                    id # AniList's own DB ID
                     title { romaji english native }
-                    type 
-                    format 
-                    episodes 
-                    status # Media status like FINISHED_AIRING
+                    type # ANIME / MANGA
+                    format # TV, MOVIE, OVA, ONA, SPECIAL, MUSIC / MANGA, NOVEL etc.
+                    episodes # Total episodes for the series
+                    chapters # Total chapters for manga
+                    volumes # Total volumes for manga
+                    status # Media status like FINISHED_AIRING, RELEASING etc.
                 }
             }
         }
@@ -68,13 +72,14 @@ query ($username: String) {
                 startedAt { year month day }
                 completedAt { year month day }
                 media {
+                    idMal # Explicitly request MAL ID
                     id
                     title { romaji english native }
-                    type 
-                    format 
-                    chapters 
-                    volumes 
-                    status # Media status like FINISHED
+                    type
+                    format
+                    chapters
+                    volumes
+                    status
                 }
             }
         }
@@ -199,6 +204,11 @@ def fetch_anilist_data(username):
     if response.status_code == 404:
         raise Exception(f"User '{username}' not found on AniList.")
     if response.status_code != 200:
+        try:
+            error_detail = response.json()
+            save_log(f"AniList API error ({response.status_code}): {json.dumps(error_detail)}", False)
+        except:
+            save_log(f"AniList API error ({response.status_code}): {response.text}", False)
         raise Exception(f'Failed to fetch data from AniList (Status: {response.status_code})')
     
     return response.json()
@@ -263,6 +273,7 @@ def format_date_for_mal(date_obj):
     if date_obj and all(date_obj.get(k) is not None for k in ['year', 'month', 'day']):
         if date_obj['year'] == 0 or date_obj['month'] == 0 or date_obj['day'] == 0:
             return "0000-00-00"
+        # MAL official export uses YYYY-MM-DD, so we'll stick to that.
         return f"{date_obj['year']:04d}-{date_obj['month']:02d}-{date_obj['day']:02d}"
     return "0000-00-00"
 
@@ -280,15 +291,110 @@ def generate_mal_xml(entries, media_type='anime', anilist_username=""):
     }
     export_type_code = 1 if media_type == 'anime' else 2
 
-    # Calculate totals for myinfo block
-    total_media = len(entries)
+    total_media = 0 # Count entries that actually get processed
     status_counts_for_myinfo = {'1': 0, '2': 0, '3': 0, '4': 0, '6': 0}
-    for entry in entries:
-        anilist_status_val = entry.get('status', 'PLANNING')
-        mal_status_code = anilist_to_mal_status_map.get(str(anilist_status_val).upper(), '6')
-        if mal_status_code in status_counts_for_myinfo:
-            status_counts_for_myinfo[mal_status_code] += 1
     
+    processed_entries_xml = []
+
+    for entry in entries:
+        media_data = entry.get('media', {})
+        
+        # --- ID Prioritization for MAL ---
+        # 1. Use media.idMal if available and valid
+        # 2. Fallback to entry.mediaId (less reliable for MAL but better than nothing)
+        series_db_id = media_data.get('idMal')
+        if not series_db_id or int(series_db_id) == 0 : # Check if idMal is None, 0, or empty string
+            series_db_id = entry.get('mediaId') # Fallback
+            if not series_db_id or int(series_db_id) == 0:
+                title_for_log = media_data.get('title', {}).get('romaji', 'N/A')
+                save_log(f"Skipping entry for MAL XML: Missing valid MAL ID (idMal and mediaId are invalid/zero). Title: {title_for_log}", False)
+                continue # Skip this entry if no usable ID for MAL
+        # --- End ID Prioritization ---
+
+        total_media += 1 # Increment for successfully processed entry for myinfo
+        anilist_status_val = entry.get('status', 'PLANNING')
+        mal_status_code_for_myinfo = anilist_to_mal_status_map.get(str(anilist_status_val).upper(), '6')
+        if mal_status_code_for_myinfo in status_counts_for_myinfo:
+            status_counts_for_myinfo[mal_status_code_for_myinfo] += 1
+
+
+        title_romaji = media_data.get('title', {}).get('romaji', '')
+        title_english = media_data.get('title', {}).get('english', '')
+        title_native = media_data.get('title', {}).get('native', '')
+        title = title_romaji or title_english or title_native or 'N/A Title'
+        title_cdata = f"<![CDATA[{title.replace(']]>', ']]]]><![CDATA[>')}]]>"
+
+        series_type_anilist = media_data.get('format', 'TV' if media_type == 'anime' else 'MANGA')
+        series_type_mal = anilist_format_to_mal_type.get(str(series_type_anilist).upper(), 'TV' if media_type == 'anime' else 'Manga')
+        
+        series_total_episodes = media_data.get('episodes', 0) or 0
+        series_total_chapters = media_data.get('chapters', 0) or 0
+        series_total_volumes = media_data.get('volumes', 0) or 0
+        
+        my_progress = entry.get('progress', 0) or 0
+        my_progress_volumes = entry.get('progressVolumes', 0) or 0
+        
+        raw_score = entry.get('score')
+        my_score = 0
+        if raw_score is not None: # Check for None before trying to convert
+            try:
+                score_float = float(raw_score)
+                if score_float > 0:
+                    if score_float > 10:
+                        my_score = round(score_float / 10.0)
+                    else:
+                        my_score = round(score_float)
+                    my_score = max(0, min(10, int(my_score)))
+            except ValueError: # Handle cases where score might not be a number
+                my_score = 0
+        
+        my_status_code = anilist_to_mal_status_map.get(str(anilist_status_val).upper(), '6')
+        my_times_repeated = entry.get('repeat', 0) or 0
+        my_start_date_str = format_date_for_mal(entry.get('startedAt'))
+        my_finish_date_str = format_date_for_mal(entry.get('completedAt'))
+        
+        item_tags = []
+        item_tag_name = media_type
+        
+        id_tag_name = 'series_animedb_id' if media_type == 'anime' else 'series_mangadb_id'
+        item_tags.append(f"    <{id_tag_name}>{series_db_id}</{id_tag_name}>")
+        item_tags.append(f"    <series_title>{title_cdata}</series_title>")
+        item_tags.append(f"    <series_type>{series_type_mal}</series_type>")
+        
+        if media_type == 'anime':
+            item_tags.append(f"    <series_episodes>{series_total_episodes}</series_episodes>")
+            item_tags.append(f"    <my_watched_episodes>{my_progress}</my_watched_episodes>")
+            item_tags.append(f"    <my_times_watched>{my_times_repeated}</my_times_watched>")
+            item_tags.append(f"    <my_rewatching_ep>0</my_rewatching_ep>")
+        else: # manga
+            item_tags.append(f"    <series_chapters>{series_total_chapters}</series_chapters>")
+            item_tags.append(f"    <series_volumes>{series_total_volumes}</series_volumes>")
+            item_tags.append(f"    <my_read_chapters>{my_progress}</my_read_chapters>")
+            item_tags.append(f"    <my_read_volumes>{my_progress_volumes}</my_read_volumes>")
+            item_tags.append(f"    <my_times_read>{my_times_repeated}</my_times_read>")
+            item_tags.append(f"    <my_rereading_chap>0</my_rereading_chap>")
+
+        item_tags.append(f"    <my_id>0</my_id>")
+        item_tags.append(f"    <my_start_date>{my_start_date_str}</my_start_date>")
+        item_tags.append(f"    <my_finish_date>{my_finish_date_str}</my_finish_date>")
+        item_tags.append(f"    <my_rated></my_rated>")
+        item_tags.append(f"    <my_score>{my_score}</my_score>")
+        item_tags.append(f"    <my_storage></my_storage>")
+        item_tags.append(f"    <my_storage_value>0.00</my_storage_value>")
+        item_tags.append(f"    <my_status>{my_status_code}</my_status>")
+        item_tags.append(f"    <my_comments><![CDATA[]]></my_comments>")
+        item_tags.append(f"    <my_rewatch_value></my_rewatch_value>")
+        # MAL's own export doesn't always include priority, but if it does, it's like: <my_priority>LOW</my_priority>
+        # We'll add it with a default for completeness if MAL might expect it.
+        item_tags.append(f"    <my_priority>LOW</my_priority>") 
+        item_tags.append(f"    <my_tags><![CDATA[]]></my_tags>")
+        item_tags.append(f"    <my_discuss>1</my_discuss>")
+        item_tags.append(f"    <my_sns>default</my_sns>")
+        item_tags.append(f"    <update_on_import>1</update_on_import>")
+
+        processed_entries_xml.append(f"  <{item_tag_name}>\n" + "\n".join(item_tags) + f"\n  </{item_tag_name}>")
+
+    # Now construct myinfo_block with updated total_media
     myinfo_lines = [
         "  <myinfo>",
         f"    <user_id></user_id>",
@@ -315,101 +421,16 @@ def generate_mal_xml(entries, media_type='anime', anilist_username=""):
         ])
     myinfo_lines.append("  </myinfo>")
 
-    xml_parts = ["""<?xml version="1.0" encoding="UTF-8" ?>
+    xml_header_and_info = ["""<?xml version="1.0" encoding="UTF-8" ?>
 <!--
  Created by AniVault (AniList Backup Manager)
  Version 1.1.0
 -->
 <myanimelist>"""]
-    xml_parts.extend(myinfo_lines)
-
-    for entry in entries:
-        media_data = entry.get('media', {})
-        series_db_id = entry.get('mediaId')
-        if not series_db_id:
-            save_log(f"Skipping entry due to missing mediaId (MAL ID): {media_data.get('title', {}).get('romaji', 'N/A')}", False)
-            continue
-
-        title_romaji = media_data.get('title', {}).get('romaji', '')
-        title_english = media_data.get('title', {}).get('english', '')
-        title_native = media_data.get('title', {}).get('native', '')
-        # Prioritize Romaji, then English, then Native for MAL title
-        title = title_romaji or title_english or title_native or 'N/A Title'
-        # Escape CDATA closing sequence if present in title
-        title_cdata = f"<![CDATA[{title.replace(']]>', ']]]]><![CDATA[>')}]]>"
-
-
-        series_type_anilist = media_data.get('format', 'TV' if media_type == 'anime' else 'MANGA') # Default
-        series_type_mal = anilist_format_to_mal_type.get(str(series_type_anilist).upper(), 'TV' if media_type == 'anime' else 'Manga')
-        
-        series_total_episodes = media_data.get('episodes', 0) or 0 # MAL uses this for series info
-        series_total_chapters = media_data.get('chapters', 0) or 0
-        series_total_volumes = media_data.get('volumes', 0) or 0
-        
-        my_progress = entry.get('progress', 0) or 0
-        my_progress_volumes = entry.get('progressVolumes', 0) or 0
-        
-        raw_score = entry.get('score')
-        my_score = 0 # Default to 0 (no score)
-        if raw_score is not None and float(raw_score) > 0:
-            mal_score_float = float(raw_score)
-            if mal_score_float > 10: # E.g. AniList 100-point scale
-                my_score = round(mal_score_float / 10.0)
-            else: # E.g. AniList 10-point or 5-star (which MAL treats as 2*score)
-                my_score = round(mal_score_float) # If it's 5-star, it might need *2 for MAL 10-pt
-            my_score = max(0, min(10, int(my_score)))
-
-        anilist_status_val = entry.get('status', 'PLANNING')
-        my_status_code = anilist_to_mal_status_map.get(str(anilist_status_val).upper(), '6') # Default to Plan to Watch/Read
-        
-        my_times_repeated = entry.get('repeat', 0) or 0
-
-        my_start_date_str = format_date_for_mal(entry.get('startedAt'))
-        my_finish_date_str = format_date_for_mal(entry.get('completedAt'))
-        
-        item_tags = []
-        item_tag_name = media_type # "anime" or "manga"
-        
-        item_tags.append(f"    <{ 'series_animedb_id' if media_type == 'anime' else 'series_mangadb_id' }>{series_db_id}</{ 'series_animedb_id' if media_type == 'anime' else 'series_mangadb_id' }>")
-        item_tags.append(f"    <series_title>{title_cdata}</series_title>")
-        item_tags.append(f"    <series_type>{series_type_mal}</series_type>")
-        item_tags.append(f"    <series_episodes>{series_total_episodes if media_type == 'anime' else series_total_chapters}</series_episodes>") # MAL uses <series_episodes> for manga chapters too in some contexts, but better to be specific if possible
-        if media_type == 'manga':
-             item_tags.append(f"    <series_volumes>{series_total_volumes}</series_volumes>")
-
-
-        item_tags.append(f"    <my_id>0</my_id>") # Standard MAL export field, usually 0 for new/updated entries
-        
-        if media_type == 'anime':
-            item_tags.append(f"    <my_watched_episodes>{my_progress}</my_watched_episodes>")
-            item_tags.append(f"    <my_times_watched>{my_times_repeated}</my_times_watched>")
-            item_tags.append(f"    <my_rewatching_ep>0</my_rewatching_ep>") # Default
-        else: # manga
-            item_tags.append(f"    <my_read_chapters>{my_progress}</my_read_chapters>")
-            item_tags.append(f"    <my_read_volumes>{my_progress_volumes}</my_read_volumes>")
-            item_tags.append(f"    <my_times_read>{my_times_repeated}</my_times_read>")
-            item_tags.append(f"    <my_rereading_chap>0</my_rereading_chap>") # Default for manga
-
-        item_tags.append(f"    <my_start_date>{my_start_date_str}</my_start_date>")
-        item_tags.append(f"    <my_finish_date>{my_finish_date_str}</my_finish_date>")
-        item_tags.append(f"    <my_rated></my_rated>") # Usually empty
-        item_tags.append(f"    <my_score>{my_score}</my_score>")
-        item_tags.append(f"    <my_storage></my_storage>") # Usually empty
-        item_tags.append(f"    <my_storage_value>0.00</my_storage_value>") # Default
-        item_tags.append(f"    <my_status>{my_status_code}</my_status>")
-        item_tags.append(f"    <my_comments><![CDATA[]]></my_comments>") # Empty user comments
-        item_tags.append(f"    <my_rewatch_value></my_rewatch_value>") # Empty unless specific value known
-        item_tags.append(f"    <my_priority>LOW</my_priority>") # Default priority, MAL uses LOW, MEDIUM, HIGH
-        item_tags.append(f"    <my_tags><![CDATA[]]></my_tags>") # Empty user tags
-        item_tags.append(f"    <my_discuss>1</my_discuss>") # Default to enable discussion
-        item_tags.append(f"    <my_sns>default</my_sns>") # Default SNS setting
-
-        item_tags.append(f"    <update_on_import>1</update_on_import>") # This is crucial
-
-        xml_parts.append(f"  <{item_tag_name}>\n" + "\n".join(item_tags) + f"\n  </{item_tag_name}>")
-
-    xml_parts.append("</myanimelist>")
-    return "\n".join(xml_parts)
+    xml_header_and_info.extend(myinfo_lines)
+    
+    final_xml_content = xml_header_and_info + processed_entries_xml + ["</myanimelist>"]
+    return "\n".join(final_xml_content)
 
 
 def create_backup(username):
@@ -454,8 +475,8 @@ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             with open(os.path.join(temp_staging_dir_path, 'animemanga_stats.txt'), 'w', encoding='utf-8') as f:
                 f.write(stats_text)
 
-            anime_xml = generate_mal_xml(anime_data_list, 'anime', username) # Pass username for myinfo
-            manga_xml = generate_mal_xml(manga_data_list, 'manga', username) # Pass username for myinfo
+            anime_xml = generate_mal_xml(anime_data_list, 'anime', username)
+            manga_xml = generate_mal_xml(manga_data_list, 'manga', username)
             with open(os.path.join(temp_staging_dir_path, 'anime.xml'), 'w', encoding='utf-8') as f: f.write(anime_xml)
             with open(os.path.join(temp_staging_dir_path, 'manga.xml'), 'w', encoding='utf-8') as f: f.write(manga_xml)
             
