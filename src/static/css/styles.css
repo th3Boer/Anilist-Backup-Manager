@@ -236,10 +236,10 @@ button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow
     margin-bottom: 25px;
 }
 .detailed-stats-section[data-type="anime"] .main-stats {
-    grid-template-columns: repeat(3, 1fr); 
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .detailed-stats-section[data-type="manga"] .main-stats {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .stat-box { 
@@ -263,10 +263,11 @@ button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow
 }
 .stat-value {
     font-size: 1.6rem; /* Leicht reduziert für Konsistenz und "N/A" */
-    font-weight: 700; 
+    font-weight: 700;
     color: var(--text-primary);
     line-height: 1.1; /* Engere Zeilenhöhe */
-    word-break: break-all; /* Stellt sicher, dass langer Text umbricht, obwohl N/A kurz ist */
+    word-break: break-word; /* Verhindert Überlaufen von kurzen Werten wie "N/A" */
+    overflow-wrap: anywhere;
 }
 /* Spezifische Anpassung für N/A, falls es immer noch Probleme gibt (optional) */
 /* .stat-value:contains("N/A") { font-size: 1.5rem; } /* CSS :contains ist nicht Standard, wäre JS Lösung */
