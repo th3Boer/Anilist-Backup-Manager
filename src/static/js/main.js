@@ -1,11 +1,14 @@
 const MAX_LOG_ENTRIES_DISPLAY = 100;
-let sseEventSource = null; 
+const POLLING_INTERVAL_MS = 30000; // 30s fallback polling
+let sseEventSource = null;
+let pollingInterval = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     loadBackups();
-    loadLogs(); 
+    loadLogs();
     checkAutoBackupStatus();
     setupSSE();
+    startPolling();
     
     if (window.initialLatestStats) {
         displayLatestStats(window.initialLatestStats);
@@ -32,7 +35,7 @@ function setupSSE() {
     sseEventSource = new EventSource("/events");
 
     sseEventSource.onopen = function() {
-        // console.log("SSE Connection Opened.");
+        if (pollingInterval) clearInterval(pollingInterval);
     };
 
     sseEventSource.onmessage = function(event) {
@@ -78,11 +81,12 @@ function setupSSE() {
 
     sseEventSource.onerror = function(err) {
         console.error("EventSource failed:", err);
-        addLogEntryToUI("[SYSTEM] SSE connection error. Real-time updates stopped.", false); 
+        addLogEntryToUI("[SYSTEM] SSE connection error. Trying to reconnect...", false);
         if (sseEventSource) {
             sseEventSource.close();
         }
-        // setTimeout(setupSSE, 10000); 
+        startPolling();
+        setTimeout(setupSSE, 10000);
     };
 }
 
@@ -506,4 +510,14 @@ function showNotification(message, type = 'info', useAlertOnError = false) {
     if (type === 'info') logTypePrefix = '[INFO]';
 
     addLogEntryToUI(`${logTypePrefix} ${message}`, type === 'success' || type === 'info');
+}
+
+function startPolling() {
+    if (pollingInterval) clearInterval(pollingInterval);
+    pollingInterval = setInterval(() => {
+        fetchLatestStats();
+        loadBackups();
+        loadLogs();
+        checkAutoBackupStatus();
+    }, POLLING_INTERVAL_MS);
 }
